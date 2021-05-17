@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/projectcontour/contour/internal/k8s"
@@ -155,11 +156,123 @@ func (p *GatewayAPIProcessor) Run(dag *DAG, source *KubernetesCache) {
 			}
 		}
 
+		// Validate that this route doesn't conflict with another.
+		filteredRoutes, rejectedRoutes := filterConflictingRoutes(matchingRoutes)
+
+		// Set status for all rejected routes.
+		for _, rejected := range rejectedRoutes {
+			//TODO: Make the 'message' descriptive to inform which resource is in conflict.
+			routeAccessor, commit := p.dag.StatusCache.ConditionsAccessor(k8s.NamespacedNameOf(rejected), rejected.Generation, status.ResourceHTTPRoute, rejected.Status.Gateways)
+			routeAccessor.AddCondition(gatewayapi_v1alpha1.ConditionRouteAdmitted, metav1.ConditionFalse, status.ReasonRouteConflict, "HTTPRoute rejected due to conflict with another.")
+			commit()
+		}
+
 		// Process all the routes that match this Gateway.
-		for _, matchingRoute := range matchingRoutes {
+		for _, matchingRoute := range filteredRoutes {
 			p.computeHTTPRoute(matchingRoute, listenerSecret)
 		}
 	}
+}
+
+type RouteMatch struct {
+	Object  *gatewayapi_v1alpha1.HTTPRoute
+	Path    *gatewayapi_v1alpha1.HTTPPathMatch
+	Headers *gatewayapi_v1alpha1.HTTPHeaderMatch
+}
+
+func filterConflictingRoutes(matchingRoutes []*gatewayapi_v1alpha1.HTTPRoute) (routesToProcess []*gatewayapi_v1alpha1.HTTPRoute, rejectedRoutes []*gatewayapi_v1alpha1.HTTPRoute) {
+
+	allMatches := make(map[string][]RouteMatch)
+	routesToProcess = copySlice(matchingRoutes)
+
+	// Gather up a list of matches by fqdn.
+	for _, route := range matchingRoutes {
+		for _, rule := range route.Spec.Rules {
+			for _, match := range rule.Matches {
+				for _, hostname := range route.Spec.Hostnames {
+
+					rm := RouteMatch{
+						Object:  route,
+						Path:    match.Path,
+						Headers: match.Headers,
+					}
+
+					// Check if this already exists in the set
+					for _, listMatch := range allMatches[string(hostname)] {
+
+						if conflictExists(listMatch, match) {
+							// Conflict found, determine which one wins.
+							if route.CreationTimestamp.Equal(&listMatch.Object.CreationTimestamp) {
+								// Check alphabetically
+								if route.Name < listMatch.Object.Name && route.Namespace < listMatch.Object.Namespace {
+									removeRoute(routesToProcess, listMatch.Object)
+									rejectedRoutes = append(rejectedRoutes, listMatch.Object)
+								} else {
+									routesToProcess = removeRoute(routesToProcess, route)
+									rejectedRoutes = append(rejectedRoutes, route)
+								}
+							} else {
+								// Check which resource is older by CreationTimestamp.
+								if route.CreationTimestamp.Before(&listMatch.Object.CreationTimestamp) {
+									routesToProcess = removeRoute(routesToProcess, listMatch.Object)
+									rejectedRoutes = append(rejectedRoutes, listMatch.Object)
+								} else {
+									routesToProcess = removeRoute(routesToProcess, route)
+									rejectedRoutes = append(rejectedRoutes, route)
+								}
+							}
+						}
+					}
+					allMatches[string(hostname)] = append(allMatches[string(hostname)], rm)
+				}
+			}
+		}
+	}
+	return routesToProcess, rejectedRoutes
+}
+
+func removeRoute(source []*gatewayapi_v1alpha1.HTTPRoute, toRemove *gatewayapi_v1alpha1.HTTPRoute) []*gatewayapi_v1alpha1.HTTPRoute {
+	var result []*gatewayapi_v1alpha1.HTTPRoute
+	for _, route := range source {
+		if route.Name == toRemove.Name && route.Namespace == toRemove.Namespace {
+			continue
+		}
+		result = append(result, route)
+	}
+	return result
+}
+
+func copySlice(routes []*gatewayapi_v1alpha1.HTTPRoute) []*gatewayapi_v1alpha1.HTTPRoute {
+	copied := make([]*gatewayapi_v1alpha1.HTTPRoute, len(routes))
+	for i, p := range routes {
+
+		if p == nil {
+			// Skip to next for nil source pointer
+			continue
+		}
+
+		// Create shallow copy of source element
+		v := *p
+
+		// Assign address of copy to destination.
+		copied[i] = &v
+	}
+	return copied
+}
+
+func conflictExists(listMatch RouteMatch, match gatewayapi_v1alpha1.HTTPRouteMatch) bool {
+	if listMatch.Path != nil && match.Path != nil &&
+		listMatch.Headers != nil && match.Headers != nil {
+		return *listMatch.Path.Type == *match.Path.Type &&
+			*listMatch.Path.Value == *match.Path.Value &&
+			reflect.DeepEqual(*listMatch.Headers, *match.Headers)
+	} else if listMatch.Path != nil && match.Path != nil {
+		return *listMatch.Path.Type == *match.Path.Type &&
+			*listMatch.Path.Value == *match.Path.Value
+	} else if match.Headers != nil && listMatch.Headers != nil {
+		return reflect.DeepEqual(*listMatch.Headers, *match.Headers)
+	}
+	return false
 }
 
 func (p *GatewayAPIProcessor) validGatewayTLS(listener gatewayapi_v1alpha1.Listener) *Secret {

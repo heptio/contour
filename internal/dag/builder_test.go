@@ -2265,6 +2265,163 @@ func TestDAGInsertGatewayAPI(t *testing.T) {
 				},
 			),
 		},
+		"conflicting route match - path": {
+			gateway: gatewayWithSelector,
+			objs: []interface{}{
+				kuardService,
+				kuardService2,
+				&gatewayapi_v1alpha1.HTTPRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "basic",
+						Namespace: "projectcontour",
+						Labels: map[string]string{
+							"app":  "contour",
+							"type": "controller",
+						},
+						CreationTimestamp: metav1.NewTime(time.Date(2021, time.Month(2), 21, 1, 10, 30, 0, time.UTC)),
+					},
+					Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+						Gateways: &gatewayapi_v1alpha1.RouteGateways{
+							Allow: gatewayAllowTypePtr(gatewayapi_v1alpha1.GatewayAllowSameNamespace),
+						},
+						Hostnames: []gatewayapi_v1alpha1.Hostname{
+							"test.projectcontour.io",
+						},
+						Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+							Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+								Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+									Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+									Value: pointer.StringPtr("/blog"),
+								},
+							}},
+							ForwardTo: httpRouteForwardTo("kuard", 8080, 1),
+						}},
+					},
+				},
+				&gatewayapi_v1alpha1.HTTPRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "basic2",
+						Namespace: "projectcontour",
+						Labels: map[string]string{
+							"app":  "contour",
+							"type": "controller",
+						},
+						CreationTimestamp: metav1.NewTime(time.Date(1982, time.Month(2), 21, 1, 10, 30, 0, time.UTC)),
+					},
+					Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+						Gateways: &gatewayapi_v1alpha1.RouteGateways{
+							Allow: gatewayAllowTypePtr(gatewayapi_v1alpha1.GatewayAllowSameNamespace),
+						},
+						Hostnames: []gatewayapi_v1alpha1.Hostname{
+							"test.projectcontour.io",
+						},
+						Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+							Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+								Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+									Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+									Value: pointer.StringPtr("/blog"),
+								},
+							}},
+							ForwardTo: httpRouteForwardTo("kuard2", 8080, 1),
+						}},
+					},
+				},
+			},
+			want: listeners(
+				&Listener{
+					Port: 80,
+					VirtualHosts: virtualhosts(
+						virtualhost("test.projectcontour.io",
+							prefixrouteHTTPRoute("/blog", service(kuardService2))),
+					),
+				},
+			),
+		},
+		"conflicting route match - headers": {
+			gateway: gatewayWithSelector,
+			objs: []interface{}{
+				kuardService,
+				kuardService2,
+				&gatewayapi_v1alpha1.HTTPRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "basic",
+						Namespace: "projectcontour",
+						Labels: map[string]string{
+							"app":  "contour",
+							"type": "controller",
+						},
+						CreationTimestamp: metav1.NewTime(time.Date(2021, time.Month(2), 21, 1, 10, 30, 0, time.UTC)),
+					},
+					Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+						Gateways: &gatewayapi_v1alpha1.RouteGateways{
+							Allow: gatewayAllowTypePtr(gatewayapi_v1alpha1.GatewayAllowSameNamespace),
+						},
+						Hostnames: []gatewayapi_v1alpha1.Hostname{
+							"test.projectcontour.io",
+						},
+						Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+							Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+								Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+									Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+									Values: map[string]string{"foo": "bar"},
+								},
+							}},
+							ForwardTo: httpRouteForwardTo("kuard", 8080, 1),
+						}, {
+							Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+								Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+									Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+									Value: pointer.StringPtr("/blog"),
+								},
+							}},
+							ForwardTo: httpRouteForwardTo("kuard", 8080, 1),
+						}},
+					},
+				},
+				&gatewayapi_v1alpha1.HTTPRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "basic2",
+						Namespace: "projectcontour",
+						Labels: map[string]string{
+							"app":  "contour",
+							"type": "controller",
+						},
+						CreationTimestamp: metav1.NewTime(time.Date(1982, time.Month(2), 21, 1, 10, 30, 0, time.UTC)),
+					},
+					Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+						Gateways: &gatewayapi_v1alpha1.RouteGateways{
+							Allow: gatewayAllowTypePtr(gatewayapi_v1alpha1.GatewayAllowSameNamespace),
+						},
+						Hostnames: []gatewayapi_v1alpha1.Hostname{
+							"test.projectcontour.io",
+						},
+						Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+							Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+								Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+									Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+									Values: map[string]string{"foo": "bar"},
+								},
+							}},
+							ForwardTo: httpRouteForwardTo("kuard2", 8080, 1),
+						}},
+					},
+				},
+			},
+			want: listeners(
+				&Listener{
+					Port: 80,
+					VirtualHosts: virtualhosts(virtualhost("test.projectcontour.io",
+						&Route{
+							PathMatchCondition: prefixString("/"),
+							HeaderMatchConditions: []HeaderMatchCondition{
+								{Name: "foo", Value: "bar", MatchType: "exact"},
+							},
+							Clusters: clustersWeight(service(kuardService2)),
+						},
+					)),
+				},
+			),
+		},
 	}
 
 	for name, tc := range tests {

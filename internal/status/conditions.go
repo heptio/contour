@@ -37,6 +37,7 @@ const ReasonDegraded RouteReasonType = "Degraded"
 const ReasonValid RouteReasonType = "Valid"
 const ReasonErrorsExist RouteReasonType = "ErrorsExist"
 const ReasonGatewayAllowMismatch RouteReasonType = "GatewayAllowMismatch"
+const ReasonRouteConflict RouteReasonType = "RouteConflict"
 
 type ConditionsUpdate struct {
 	FullName           types.NamespacedName

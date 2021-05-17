@@ -15,6 +15,7 @@ package dag
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -2574,6 +2575,21 @@ func TestGatewayAPIDAGStatus(t *testing.T) {
 		},
 	}
 
+	kuardTwoService := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kuardtwo",
+			Namespace: "default",
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{{
+				Name:       "http",
+				Protocol:   "TCP",
+				Port:       8080,
+				TargetPort: intstr.FromInt(8080),
+			}},
+		},
+	}
+
 	run(t, "simple httproute", testcase{
 		objs: []interface{}{
 			kuardService,
@@ -3374,6 +3390,82 @@ func TestGatewayAPIDAGStatus(t *testing.T) {
 					Status:  contour_api_v1.ConditionFalse,
 					Reason:  string(status.ReasonGatewayAllowMismatch),
 					Message: "Gateway RouteSelector matches, but GatewayAllow has mismatch.",
+				},
+			},
+		}},
+	})
+
+	run(t, "conflicted path prefix route", testcase{
+		objs: []interface{}{
+			kuardService,
+			kuardTwoService,
+			&gatewayapi_v1alpha1.HTTPRoute{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "basic",
+					Namespace: "default",
+					Labels: map[string]string{
+						"app": "contour",
+					},
+					CreationTimestamp: metav1.NewTime(time.Date(1982, time.Month(2), 21, 1, 10, 30, 0, time.UTC)),
+				},
+				Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+					Gateways: &gatewayapi_v1alpha1.RouteGateways{
+						Allow: gatewayAllowTypePtr(gatewayapi_v1alpha1.GatewayAllowAll),
+					},
+					Hostnames: []gatewayapi_v1alpha1.Hostname{
+						"projectcontour.io",
+					},
+					Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/"),
+						ForwardTo: []gatewayapi_v1alpha1.HTTPRouteForwardTo{{
+							ServiceName: pointer.StringPtr("kuard"),
+							Port:        gatewayPort(8080),
+						}},
+					}},
+				},
+			}, &gatewayapi_v1alpha1.HTTPRoute{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "basic2",
+					Namespace: "default",
+					Labels: map[string]string{
+						"app": "contour",
+					},
+					CreationTimestamp: metav1.NewTime(time.Date(2021, time.Month(2), 21, 1, 10, 30, 0, time.UTC)),
+				},
+				Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+					Gateways: &gatewayapi_v1alpha1.RouteGateways{
+						Allow: gatewayAllowTypePtr(gatewayapi_v1alpha1.GatewayAllowAll),
+					},
+					Hostnames: []gatewayapi_v1alpha1.Hostname{
+						"projectcontour.io",
+					},
+					Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/"),
+						ForwardTo: []gatewayapi_v1alpha1.HTTPRouteForwardTo{{
+							ServiceName: pointer.StringPtr("kuardtwo"),
+							Port:        gatewayPort(8080),
+						}},
+					}},
+				},
+			}},
+		want: []*status.ConditionsUpdate{{
+			FullName: types.NamespacedName{Namespace: "default", Name: "basic2"},
+			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
+				gatewayapi_v1alpha1.ConditionRouteAdmitted: {
+					Type:    string(gatewayapi_v1alpha1.ConditionRouteAdmitted),
+					Status:  contour_api_v1.ConditionFalse,
+					Reason:  string(status.ReasonRouteConflict),
+					Message: "HTTPRoute rejected due to conflict with another.",
+				},
+			},
+		}, {
+			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
+			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
+				gatewayapi_v1alpha1.ConditionRouteAdmitted: {
+					Type:    string(gatewayapi_v1alpha1.ConditionRouteAdmitted),
+					Status:  contour_api_v1.ConditionTrue,
+					Reason:  string(status.ValidCondition),
+					Message: "Valid HTTPRoute",
 				},
 			},
 		}},

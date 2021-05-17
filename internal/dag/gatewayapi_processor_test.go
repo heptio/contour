@@ -16,6 +16,9 @@ package dag
 import (
 	"fmt"
 	"testing"
+	"time"
+
+	"k8s.io/utils/pointer"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -201,4 +204,378 @@ func TestComputeHosts(t *testing.T) {
 			assert.Equal(t, tc.wantError, gotError)
 		})
 	}
+}
+
+func TestMatchesConflict(t *testing.T) {
+	tests := map[string]struct {
+		routes []*gatewayapi_v1alpha1.HTTPRoute
+		want   []*gatewayapi_v1alpha1.HTTPRoute
+	}{
+		"no conflict, simple": {
+			routes: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/a"),
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}}, 2021),
+				httpRoute("basic2",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/b"),
+						ForwardTo: httpRouteForwardTo("blogsvc2", 80, 1),
+					}}, 2021),
+				httpRoute("basic3",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/c"),
+						ForwardTo: httpRouteForwardTo("blogsvc3", 80, 1),
+					}}, 2021),
+				httpRoute("basic4",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/d"),
+						ForwardTo: httpRouteForwardTo("blogsvc4", 80, 1),
+					}}, 2021),
+				httpRoute("basic5",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/e"),
+						ForwardTo: httpRouteForwardTo("blogsvc5", 80, 1),
+					}}, 2021),
+				httpRoute("basic6",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/f"),
+						ForwardTo: httpRouteForwardTo("blogsvc6", 80, 1),
+					}}, 2021),
+			},
+			want: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/a"),
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}}, 2021),
+				httpRoute("basic2",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/b"),
+						ForwardTo: httpRouteForwardTo("blogsvc2", 80, 1),
+					}}, 2021),
+				httpRoute("basic3",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/c"),
+						ForwardTo: httpRouteForwardTo("blogsvc3", 80, 1),
+					}}, 2021),
+				httpRoute("basic4",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/d"),
+						ForwardTo: httpRouteForwardTo("blogsvc4", 80, 1),
+					}}, 2021),
+				httpRoute("basic5",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/e"),
+						ForwardTo: httpRouteForwardTo("blogsvc5", 80, 1),
+					}}, 2021),
+				httpRoute("basic6",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/f"),
+						ForwardTo: httpRouteForwardTo("blogsvc6", 80, 1),
+					}}, 2021),
+			},
+		},
+		"no conflict, same path, different headers": {
+			routes: []*gatewayapi_v1alpha1.HTTPRoute{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "basic",
+					Namespace: "projectcontour",
+					Labels: map[string]string{
+						"app":  "contour",
+						"type": "controller",
+					},
+				},
+				Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+					Hostnames: []gatewayapi_v1alpha1.Hostname{
+						"test.projectcontour.io",
+					},
+					Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+							Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+								Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+								Value: pointer.StringPtr("/"),
+							},
+							Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+								Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+								Values: map[string]string{"something": "different"},
+							},
+						}},
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}},
+				},
+			}, {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "basic",
+					Namespace: "projectcontour",
+					Labels: map[string]string{
+						"app":  "contour",
+						"type": "controller",
+					},
+				},
+				Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+					Hostnames: []gatewayapi_v1alpha1.Hostname{
+						"test.projectcontour.io",
+					},
+					Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+							Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+								Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+								Value: pointer.StringPtr("/"),
+							},
+							Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+								Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+								Values: map[string]string{"foo": "bar"},
+							},
+						}},
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}},
+				},
+			}},
+			want: []*gatewayapi_v1alpha1.HTTPRoute{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "basic",
+					Namespace: "projectcontour",
+					Labels: map[string]string{
+						"app":  "contour",
+						"type": "controller",
+					},
+				},
+				Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+					Hostnames: []gatewayapi_v1alpha1.Hostname{
+						"test.projectcontour.io",
+					},
+					Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+							Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+								Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+								Value: pointer.StringPtr("/"),
+							},
+							Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+								Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+								Values: map[string]string{"something": "different"},
+							},
+						}},
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}},
+				},
+			}, {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "basic",
+					Namespace: "projectcontour",
+					Labels: map[string]string{
+						"app":  "contour",
+						"type": "controller",
+					},
+				},
+				Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+					Hostnames: []gatewayapi_v1alpha1.Hostname{
+						"test.projectcontour.io",
+					},
+					Rules: []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+							Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+								Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+								Value: pointer.StringPtr("/"),
+							},
+							Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+								Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+								Values: map[string]string{"foo": "bar"},
+							},
+						}},
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}},
+				},
+			}},
+		},
+		"no conflict, same headers, different path": {
+			routes: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+							Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+								Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+								Value: pointer.StringPtr("/blog"),
+							},
+							Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+								Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+								Values: map[string]string{"foo": "bar"},
+							},
+						}},
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}}, 2021),
+				httpRoute("basic2",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+							Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+								Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+								Value: pointer.StringPtr("/"),
+							},
+							Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+								Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+								Values: map[string]string{"foo": "bar"},
+							},
+						}},
+						ForwardTo: httpRouteForwardTo("defaultsvc", 80, 1),
+					}}, 2021),
+			},
+			want: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+							Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+								Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+								Value: pointer.StringPtr("/blog"),
+							},
+							Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+								Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+								Values: map[string]string{"foo": "bar"},
+							},
+						}},
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}}, 2021),
+				httpRoute("basic2",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches: []gatewayapi_v1alpha1.HTTPRouteMatch{{
+							Path: &gatewayapi_v1alpha1.HTTPPathMatch{
+								Type:  pathMatchTypePtr(gatewayapi_v1alpha1.PathMatchPrefix),
+								Value: pointer.StringPtr("/"),
+							},
+							Headers: &gatewayapi_v1alpha1.HTTPHeaderMatch{
+								Type:   headerMatchTypePtr(gatewayapi_v1alpha1.HeaderMatchExact),
+								Values: map[string]string{"foo": "bar"},
+							},
+						}},
+						ForwardTo: httpRouteForwardTo("defaultsvc", 80, 1),
+					}}, 2021),
+			},
+		},
+		"no conflict, multiple hostnames, same matches": {
+			routes: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/"),
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}}, 2021),
+				httpRoute("basic2",
+					[]gatewayapi_v1alpha1.Hostname{"test2.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/"),
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}}, 2021),
+			},
+			want: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/"),
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}}, 2021),
+				httpRoute("basic2",
+					[]gatewayapi_v1alpha1.Hostname{"test2.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/"),
+						ForwardTo: httpRouteForwardTo("blogsvc", 80, 1),
+					}}, 2021),
+			},
+		},
+		"duplicate prefixMatches": {
+			routes: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/blog"),
+						ForwardTo: httpRouteForwardTo("bluesvc", 80, 1),
+					}}, 2021),
+				httpRoute("basic3",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/blog"),
+						ForwardTo: httpRouteForwardTo("purplesvc", 80, 1),
+					}}, 1982),
+				httpRoute("basic2",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/blog"),
+						ForwardTo: httpRouteForwardTo("greensvc", 80, 1),
+					}}, 2004),
+			},
+			want: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic3",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/blog"),
+						ForwardTo: httpRouteForwardTo("purplesvc", 80, 1),
+					}}, 1982),
+			},
+		},
+		"same path, different match types": {
+			routes: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchExact, "/blog"),
+						ForwardTo: httpRouteForwardTo("bluesvc", 80, 1),
+					}}, 2021),
+				httpRoute("basic2",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/blog"),
+						ForwardTo: httpRouteForwardTo("greensvc", 80, 1),
+					}}, 1982),
+			},
+			want: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchExact, "/blog"),
+						ForwardTo: httpRouteForwardTo("bluesvc", 80, 1),
+					}}, 2021),
+				httpRoute("basic2",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/blog"),
+						ForwardTo: httpRouteForwardTo("greensvc", 80, 1),
+					}}, 1982),
+			},
+		},
+		"same prefixMatch, same match types, same timestamps, valid route is chosen alphabetically": {
+			routes: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/blog"),
+						ForwardTo: httpRouteForwardTo("bluesvc", 80, 1),
+					}}, 2021),
+				httpRoute("different",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/blog"),
+						ForwardTo: httpRouteForwardTo("greensvc", 80, 1),
+					}}, 2021),
+			},
+			want: []*gatewayapi_v1alpha1.HTTPRoute{
+				httpRoute("basic",
+					[]gatewayapi_v1alpha1.Hostname{"test.projectcontour.io"}, []gatewayapi_v1alpha1.HTTPRouteRule{{
+						Matches:   httpRouteMatch(gatewayapi_v1alpha1.PathMatchPrefix, "/blog"),
+						ForwardTo: httpRouteForwardTo("bluesvc", 80, 1),
+					}}, 2021),
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			gotValid, _ := filterConflictingRoutes(tc.routes)
+			assert.Equal(t, tc.want, gotValid)
+		})
+	}
+}
+
+func httpRoute(name string, hostnames []gatewayapi_v1alpha1.Hostname, rules []gatewayapi_v1alpha1.HTTPRouteRule, creationYear int) *gatewayapi_v1alpha1.HTTPRoute {
+	route := &gatewayapi_v1alpha1.HTTPRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "projectcontour",
+			Labels: map[string]string{
+				"app":  "contour",
+				"type": "controller",
+			},
+			CreationTimestamp: metav1.NewTime(time.Date(creationYear, time.Month(2), 21, 1, 10, 30, 0, time.UTC)),
+		},
+		Spec: gatewayapi_v1alpha1.HTTPRouteSpec{
+			Hostnames: hostnames,
+			Rules:     rules,
+		},
+	}
+	return route
 }
