@@ -19,6 +19,7 @@ import (
 	envoy_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
+	envoy_req_without_query_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/formatter/req_without_query/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	_struct "github.com/golang/protobuf/ptypes/struct"
 	"github.com/projectcontour/contour/internal/protobuf"
@@ -27,8 +28,10 @@ import (
 
 func TestFileAccessLog(t *testing.T) {
 	tests := map[string]struct {
-		path string
-		want []*envoy_accesslog_v3.AccessLog
+		path       string
+		format     string
+		extensions []string
+		want       []*envoy_accesslog_v3.AccessLog
 	}{
 		"stdout": {
 			path: "/dev/stdout",
@@ -41,10 +44,61 @@ func TestFileAccessLog(t *testing.T) {
 				},
 			}},
 		},
+		"custom log format": {
+			path:   "/dev/stdout",
+			format: "%START_TIME%\n",
+			want: []*envoy_accesslog_v3.AccessLog{{
+				Name: wellknown.FileAccessLog,
+				ConfigType: &envoy_accesslog_v3.AccessLog_TypedConfig{
+					TypedConfig: protobuf.MustMarshalAny(&envoy_file_v3.FileAccessLog{
+						Path: "/dev/stdout",
+						AccessLogFormat: &envoy_file_v3.FileAccessLog_LogFormat{
+							LogFormat: &envoy_config_core_v3.SubstitutionFormatString{
+								Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
+									TextFormatSource: &envoy_config_core_v3.DataSource{
+										Specifier: &envoy_config_core_v3.DataSource_InlineString{
+											InlineString: "%START_TIME%\n",
+										},
+									},
+								},
+							},
+						},
+					}),
+				},
+			}},
+		},
+		"custom log format with access log extension": {
+			path:       "/dev/stdout",
+			format:     "[%START_TIME%] \"%REQ_WITHOUT_QUERY(X-ENVOY-ORIGINAL-PATH?:PATH)%\"\n",
+			extensions: []string{"envoy.formatter.req_without_query"},
+			want: []*envoy_accesslog_v3.AccessLog{{
+				Name: wellknown.FileAccessLog,
+				ConfigType: &envoy_accesslog_v3.AccessLog_TypedConfig{
+					TypedConfig: protobuf.MustMarshalAny(&envoy_file_v3.FileAccessLog{
+						Path: "/dev/stdout",
+						AccessLogFormat: &envoy_file_v3.FileAccessLog_LogFormat{
+							LogFormat: &envoy_config_core_v3.SubstitutionFormatString{
+								Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
+									TextFormatSource: &envoy_config_core_v3.DataSource{
+										Specifier: &envoy_config_core_v3.DataSource_InlineString{
+											InlineString: "[%START_TIME%] \"%REQ_WITHOUT_QUERY(X-ENVOY-ORIGINAL-PATH?:PATH)%\"\n",
+										},
+									},
+								},
+								Formatters: []*envoy_config_core_v3.TypedExtensionConfig{{
+									Name:        "envoy.formatter.req_without_query",
+									TypedConfig: protobuf.MustMarshalAny(&envoy_req_without_query_v3.ReqWithoutQuery{ /* empty */ }),
+								}},
+							},
+						},
+					}),
+				},
+			}},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := FileAccessLogEnvoy(tc.path)
+			got := FileAccessLogEnvoy(tc.path, tc.format, tc.extensions)
 			protobuf.ExpectEqual(t, tc.want, got)
 		})
 	}
@@ -117,7 +171,7 @@ func TestJSONFileAccessLog(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := FileAccessLogJSON(tc.path, tc.headers)
+			got := FileAccessLogJSON(tc.path, tc.headers, nil)
 			protobuf.ExpectEqual(t, tc.want, got)
 		})
 	}

@@ -103,6 +103,13 @@ type ListenerConfig struct {
 	// Defaults to a particular set of fields.
 	AccessLogFields config.AccessLogFields
 
+	// AccessLogFormatString sets the format string to be used for text based access logs.
+	// Defaults to empty to defer to Envoy's default log format.
+	AccessLogFormatString string
+
+	// AccessLogFormatterExtensions defines the Envoy extensions to enable for access log.
+	AccessLogFormatterExtensions []string
+
 	// RequestTimeout configures the request_timeout for all Connection Managers.
 	RequestTimeout timeout.Setting
 
@@ -245,18 +252,18 @@ func (lvc *ListenerConfig) accesslogFields() config.AccessLogFields {
 func (lvc *ListenerConfig) newInsecureAccessLog() []*envoy_accesslog_v3.AccessLog {
 	switch lvc.accesslogType() {
 	case string(config.JSONAccessLog):
-		return envoy_v3.FileAccessLogJSON(lvc.httpAccessLog(), lvc.accesslogFields())
+		return envoy_v3.FileAccessLogJSON(lvc.httpAccessLog(), lvc.accesslogFields(), lvc.AccessLogFormatterExtensions)
 	default:
-		return envoy_v3.FileAccessLogEnvoy(lvc.httpAccessLog())
+		return envoy_v3.FileAccessLogEnvoy(lvc.httpAccessLog(), lvc.AccessLogFormatString, lvc.AccessLogFormatterExtensions)
 	}
 }
 
 func (lvc *ListenerConfig) newSecureAccessLog() []*envoy_accesslog_v3.AccessLog {
 	switch lvc.accesslogType() {
 	case "json":
-		return envoy_v3.FileAccessLogJSON(lvc.httpsAccessLog(), lvc.accesslogFields())
+		return envoy_v3.FileAccessLogJSON(lvc.httpsAccessLog(), lvc.accesslogFields(), lvc.AccessLogFormatterExtensions)
 	default:
-		return envoy_v3.FileAccessLogEnvoy(lvc.httpsAccessLog())
+		return envoy_v3.FileAccessLogEnvoy(lvc.httpsAccessLog(), lvc.AccessLogFormatString, lvc.AccessLogFormatterExtensions)
 	}
 }
 

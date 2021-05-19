@@ -61,7 +61,7 @@ func TestTimeoutsNotSpecified(t *testing.T) {
 		envoy_v3.HTTPConnectionManagerBuilder().
 			RouteConfigName(xdscache_v3.ENVOY_HTTP_LISTENER).
 			MetricsPrefix(xdscache_v3.ENVOY_HTTP_LISTENER).
-			AccessLoggers(envoy_v3.FileAccessLogEnvoy(xdscache_v3.DEFAULT_HTTP_ACCESS_LOG)).
+			AccessLoggers(envoy_v3.FileAccessLogEnvoy(xdscache_v3.DEFAULT_HTTP_ACCESS_LOG, "", nil)).
 			DefaultFilters().
 			Get(),
 	)
@@ -113,7 +113,7 @@ func TestNonZeroTimeoutsSpecified(t *testing.T) {
 	httpListener.FilterChains = envoy_v3.FilterChains(envoy_v3.HTTPConnectionManagerBuilder().
 		RouteConfigName(xdscache_v3.ENVOY_HTTP_LISTENER).
 		MetricsPrefix(xdscache_v3.ENVOY_HTTP_LISTENER).
-		AccessLoggers(envoy_v3.FileAccessLogEnvoy(xdscache_v3.DEFAULT_HTTP_ACCESS_LOG)).
+		AccessLoggers(envoy_v3.FileAccessLogEnvoy(xdscache_v3.DEFAULT_HTTP_ACCESS_LOG, "", nil)).
 		DefaultFilters().
 		ConnectionIdleTimeout(timeout.DurationSetting(7 * time.Second)).
 		StreamIdleTimeout(timeout.DurationSetting(70 * time.Second)).
