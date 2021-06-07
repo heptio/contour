@@ -15,6 +15,7 @@ package dag
 
 import (
 	"fmt"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -400,22 +401,39 @@ func (p *HTTPProxyProcessor) computeRoutes(
 			namespace = proxy.Namespace
 		}
 
+		if err := pathMatchConditionsValid(include.Conditions); err != nil {
+			validCond.AddErrorf(contour_api_v1.ConditionTypeIncludeError, "PathMatchConditionsNotValid",
+				"include: %s", err)
+			continue
+		}
+
+		if err := headerMatchConditionsValid(include.Conditions); err != nil {
+			validCond.AddError(contour_api_v1.ConditionTypeRouteError, "HeaderMatchConditionsNotValid",
+				err.Error())
+			continue
+		}
+
 		includedProxy, ok := p.source.httpproxies[types.NamespacedName{Name: include.Name, Namespace: namespace}]
 		if !ok {
 			validCond.AddErrorf(contour_api_v1.ConditionTypeIncludeError, "IncludeNotFound",
 				"include %s/%s not found", namespace, include.Name)
-			return nil
+
+			// Set 502 response when include was not found but include condition was valid.
+			if len(include.Conditions) > 0 {
+				routes = append(routes, &Route{
+					PathMatchCondition:    mergePathMatchConditions(include.Conditions),
+					HeaderMatchConditions: mergeHeaderMatchConditions(include.Conditions),
+					DirectResponse:        directResponse(http.StatusBadGateway),
+				})
+			}
+
+			continue
 		}
+
 		if includedProxy.Spec.VirtualHost != nil {
 			validCond.AddErrorf(contour_api_v1.ConditionTypeIncludeError, "RootIncludesRoot",
 				"root httpproxy cannot include another root httpproxy")
-			return nil
-		}
-
-		if err := pathMatchConditionsValid(include.Conditions); err != nil {
-			validCond.AddErrorf(contour_api_v1.ConditionTypeIncludeError, "PathMatchConditionsNotValid",
-				"include: %s", err)
-			return nil
+			continue
 		}
 
 		inc, incCommit := p.dag.StatusCache.ProxyAccessor(includedProxy)
@@ -567,7 +585,7 @@ func (p *HTTPProxyProcessor) computeRoutes(
 			if err != nil {
 				validCond.AddErrorf(contour_api_v1.ConditionTypeServiceError, "ServiceUnresolvedReference",
 					"Spec.Routes unresolved service reference: %s", err)
-				return nil
+				continue
 			}
 
 			// Determine the protocol to use to speak to this Cluster.
@@ -639,6 +657,9 @@ func (p *HTTPProxyProcessor) computeRoutes(
 			} else {
 				r.Clusters = append(r.Clusters, c)
 			}
+		}
+		if len(r.Clusters) == 0 {
+			r.DirectResponse = directResponse(http.StatusServiceUnavailable)
 		}
 		routes = append(routes, r)
 	}
@@ -1006,4 +1027,10 @@ func isBlank(s string) bool {
 // routeEnforceTLS determines if the route should redirect the user to a secure TLS listener
 func routeEnforceTLS(enforceTLS, permitInsecure bool) bool {
 	return enforceTLS && !permitInsecure
+}
+
+func directResponse(statusCode uint32) *DirectResponse {
+	return &DirectResponse{
+		StatusCode: statusCode,
+	}
 }

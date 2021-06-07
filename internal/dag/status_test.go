@@ -568,8 +568,8 @@ func TestDAGStatus(t *testing.T) {
 			}},
 			Routes: []contour_api_v1.Route{{
 				Services: []contour_api_v1.Service{{
-					Name: "green",
-					Port: 80,
+					Name: "kuard",
+					Port: 8080,
 				}},
 			}},
 		},
@@ -1172,11 +1172,10 @@ func TestDAGStatus(t *testing.T) {
 		want: map[types.NamespacedName]contour_api_v1.DetailedCondition{
 			{Name: proxyInvalidDuplicateIncludeCondtionHeaders.Name,
 				Namespace: proxyInvalidDuplicateIncludeCondtionHeaders.Namespace}: fixture.NewValidCondition().
-				WithGeneration(proxyInvalidDuplicateIncludeCondtionHeaders.Generation).Valid(),
+				WithGeneration(proxyInvalidDuplicateIncludeCondtionHeaders.Generation).WithError(contour_api_v1.ConditionTypeRouteError, "HeaderMatchConditionsNotValid", "cannot specify duplicate header 'exact match' conditions in the same route"),
 			{Name: proxyValidDelegatedRoots.Name,
 				Namespace: proxyValidDelegatedRoots.Namespace}: fixture.NewValidCondition().
-				WithGeneration(proxyValidDelegatedRoots.Generation).
-				WithError(contour_api_v1.ConditionTypeRouteError, "HeaderMatchConditionsNotValid", "cannot specify duplicate header 'exact match' conditions in the same route"),
+				WithGeneration(proxyValidDelegatedRoots.Generation).Orphaned(),
 		},
 	})
 
