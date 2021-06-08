@@ -103,8 +103,10 @@ func (v *secretVisitor) addSecret(s *dag.Secret) {
 func (v *secretVisitor) visit(vertex dag.Vertex) {
 	switch obj := vertex.(type) {
 	case *dag.SecureVirtualHost:
-		if obj.Secret != nil {
-			v.addSecret(obj.Secret)
+		if len(obj.Secrets) > 0 {
+			for _, secret := range obj.Secrets {
+				v.addSecret(secret)
+			}
 		}
 		if obj.FallbackCertificate != nil {
 			v.addSecret(obj.FallbackCertificate)

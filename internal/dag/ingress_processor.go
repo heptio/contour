@@ -88,7 +88,7 @@ func (p *IngressProcessor) computeSecureVirtualhosts() {
 			// Ingress.
 			for _, host := range tls.Hosts {
 				svhost := p.dag.EnsureSecureVirtualHost(ListenerName{Name: host, ListenerName: "ingress_https"})
-				svhost.Secret = sec
+				svhost.Secrets[sec.Name()] = sec
 				// default to a minimum TLS version of 1.2 if it's not specified
 				svhost.MinTLSVersion = annotation.MinTLSVersion(annotation.ContourAnnotation(ing, "tls-minimum-protocol-version"), "1.2")
 			}

@@ -39,8 +39,9 @@ func TestSecureVirtualHostValid(t *testing.T) {
 	vh := SecureVirtualHost{}
 	assert.False(t, vh.Valid())
 
+	sec := new(Secret)
 	vh = SecureVirtualHost{
-		Secret: new(Secret),
+		Secrets: map[string]*Secret{sec.Name(): sec},
 	}
 	assert.False(t, vh.Valid())
 
@@ -53,8 +54,9 @@ func TestSecureVirtualHostValid(t *testing.T) {
 	}
 	assert.False(t, vh.Valid())
 
+	sec = new(Secret)
 	vh = SecureVirtualHost{
-		Secret: new(Secret),
+		Secrets: map[string]*Secret{sec.Name(): sec},
 		VirtualHost: VirtualHost{
 			routes: map[string]*Route{
 				"/": {},
@@ -68,8 +70,9 @@ func TestSecureVirtualHostValid(t *testing.T) {
 	}
 	assert.True(t, vh.Valid())
 
+	sec = new(Secret)
 	vh = SecureVirtualHost{
-		Secret:   new(Secret),
+		Secrets:  map[string]*Secret{sec.Name(): sec},
 		TCPProxy: new(TCPProxy),
 	}
 	assert.True(t, vh.Valid())

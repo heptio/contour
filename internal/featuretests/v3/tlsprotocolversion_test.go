@@ -127,7 +127,7 @@ func TestTLSMinimumProtocolVersion(t *testing.T) {
 			envoy_v3.FilterChainTLS(
 				"kuard.example.com",
 				envoy_v3.DownstreamTLSContext(
-					&dag.Secret{Object: sec1},
+					map[string]*dag.Secret{sec1.Name: {Object: sec1}},
 					envoy_tls_v3.TlsParameters_TLSv1_3,
 					nil,
 					nil,

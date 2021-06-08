@@ -387,7 +387,7 @@ func TestHTTPProxyTLSListener(t *testing.T) {
 			envoy_v3.FilterChainTLS(
 				"kuard.example.com",
 				envoy_v3.DownstreamTLSContext(
-					&dag.Secret{Object: secret1},
+					map[string]*dag.Secret{secret1.Name: {Object: secret1}},
 					envoy_tls_v3.TlsParameters_TLSv1_3,
 					nil,
 					nil,
@@ -468,7 +468,7 @@ func TestTLSListenerCipherSuites(t *testing.T) {
 			envoy_v3.FilterChainTLS(
 				"kuard.example.com",
 				envoy_v3.DownstreamTLSContext(
-					&dag.Secret{Object: secret1},
+					map[string]*dag.Secret{secret1.Name: {Object: secret1}},
 					envoy_tls_v3.TlsParameters_TLSv1_2,
 					[]string{"ECDHE-ECDSA-AES256-GCM-SHA384"},
 					nil,
@@ -1066,7 +1066,7 @@ func TestHTTPProxyMinimumTLSVersion(t *testing.T) {
 			envoy_v3.FilterChainTLS(
 				"kuard.example.com",
 				envoy_v3.DownstreamTLSContext(
-					&dag.Secret{Object: secret1},
+					map[string]*dag.Secret{secret1.Name: {Object: secret1}},
 					envoy_tls_v3.TlsParameters_TLSv1_2,
 					nil,
 					nil,
@@ -1125,7 +1125,7 @@ func TestHTTPProxyMinimumTLSVersion(t *testing.T) {
 			envoy_v3.FilterChainTLS(
 				"kuard.example.com",
 				envoy_v3.DownstreamTLSContext(
-					&dag.Secret{Object: secret1},
+					map[string]*dag.Secret{secret1.Name: {Object: secret1}},
 					envoy_tls_v3.TlsParameters_TLSv1_3,
 					nil,
 					nil,

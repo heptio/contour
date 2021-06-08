@@ -191,7 +191,7 @@ func (p *HTTPProxyProcessor) computeHTTPProxy(proxy *contour_api_v1.HTTPProxy) {
 			}
 
 			svhost := p.dag.EnsureSecureVirtualHost(ListenerName{Name: host, ListenerName: "ingress_https"})
-			svhost.Secret = sec
+			svhost.Secrets[sec.Name()] = sec
 			// default to a minimum TLS version of 1.2 if it's not specified
 			svhost.MinTLSVersion = annotation.MinTLSVersion(tls.MinimumProtocolVersion, "1.2")
 

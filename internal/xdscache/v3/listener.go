@@ -517,12 +517,12 @@ func (v *listenerVisitor) visit(vertex dag.Vertex) {
 		var downstreamTLS *envoy_tls_v3.DownstreamTlsContext
 
 		// Secret is provided when TLS is terminated and nil when TLS passthrough is used.
-		if vh.Secret != nil {
+		if len(vh.Secrets) > 0 {
 			// Choose the higher of the configured or requested TLS version.
 			vers := max(v.ListenerConfig.minTLSVersion(), envoy_v3.ParseTLSVersion(vh.MinTLSVersion))
 
 			downstreamTLS = envoy_v3.DownstreamTLSContext(
-				vh.Secret,
+				vh.Secrets,
 				vers,
 				v.ListenerConfig.CipherSuites,
 				vh.DownstreamValidation,
@@ -541,7 +541,7 @@ func (v *listenerVisitor) visit(vertex dag.Vertex) {
 			// Construct the downstreamTLSContext passing the configured fallbackCertificate. The TLS minProtocolVersion will use
 			// the value defined in the Contour Configuration file if defined.
 			downstreamTLS = envoy_v3.DownstreamTLSContext(
-				vh.FallbackCertificate,
+				map[string]*dag.Secret{vh.FallbackCertificate.Name(): vh.FallbackCertificate},
 				v.ListenerConfig.minTLSVersion(),
 				v.ListenerConfig.CipherSuites,
 				vh.DownstreamValidation,

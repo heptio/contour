@@ -3340,7 +3340,7 @@ func transportSocket(secretname string, tlsMinProtoVersion envoy_tls_v3.TlsParam
 		},
 	}
 	return envoy_v3.DownstreamTLSTransportSocket(
-		envoy_v3.DownstreamTLSContext(secret, tlsMinProtoVersion, cipherSuites, nil, alpnprotos...),
+		envoy_v3.DownstreamTLSContext(map[string]*dag.Secret{secret.Name(): secret}, tlsMinProtoVersion, cipherSuites, nil, alpnprotos...),
 	)
 }
 

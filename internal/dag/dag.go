@@ -516,7 +516,7 @@ type SecureVirtualHost struct {
 	MinTLSVersion string
 
 	// The cert and key for this host.
-	Secret *Secret
+	Secrets map[string]*Secret
 
 	// FallbackCertificate
 	FallbackCertificate *Secret
@@ -548,8 +548,10 @@ func (s *SecureVirtualHost) Visit(f func(Vertex)) {
 	if s.TCPProxy != nil {
 		f(s.TCPProxy)
 	}
-	if s.Secret != nil {
-		f(s.Secret) // secret is not required if vhost is using tls passthrough
+	if len(s.Secrets) > 0 {
+		for _, secret := range s.Secrets {
+			f(secret) // secret is not required if vhost is using tls passthrough
+		}
 	}
 }
 
@@ -557,7 +559,7 @@ func (s *SecureVirtualHost) Valid() bool {
 	// A SecureVirtualHost is valid if either
 	// 1. it has a secret and at least one route.
 	// 2. it has a tcpproxy, because the tcpproxy backend may negotiate TLS itself.
-	return (s.Secret != nil && len(s.routes) > 0) || s.TCPProxy != nil
+	return (len(s.Secrets) > 0 && len(s.routes) > 0) || s.TCPProxy != nil
 }
 
 type ListenerName struct {

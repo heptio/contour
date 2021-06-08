@@ -633,7 +633,7 @@ func (p *GatewayAPIProcessor) computeHTTPRoute(route *gatewayapi_v1alpha1.HTTPRo
 
 				if listenerSecret != nil {
 					svhost := p.dag.EnsureSecureVirtualHost(ListenerName{Name: host, ListenerName: "ingress_https"})
-					svhost.Secret = listenerSecret
+					svhost.Secrets[listenerSecret.Name()] = listenerSecret
 					svhost.addRoute(route)
 				} else {
 					vhost := p.dag.EnsureVirtualHost(ListenerName{Name: host, ListenerName: "ingress_http"})

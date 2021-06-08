@@ -66,11 +66,11 @@ func TestDownstreamTLSTransportSocket(t *testing.T) {
 		want *envoy_core_v3.TransportSocket
 	}{
 		"default/tls": {
-			ctxt: DownstreamTLSContext(serverSecret, envoy_tls_v3.TlsParameters_TLSv1_2, nil, nil, "client-subject-name", "h2", "http/1.1"),
+			ctxt: DownstreamTLSContext(map[string]*dag.Secret{serverSecret.Name(): serverSecret}, envoy_tls_v3.TlsParameters_TLSv1_2, nil, nil, "client-subject-name", "h2", "http/1.1"),
 			want: &envoy_core_v3.TransportSocket{
 				Name: "envoy.transport_sockets.tls",
 				ConfigType: &envoy_core_v3.TransportSocket_TypedConfig{
-					TypedConfig: protobuf.MustMarshalAny(DownstreamTLSContext(serverSecret, envoy_tls_v3.TlsParameters_TLSv1_2, nil, nil, "client-subject-name", "h2", "http/1.1")),
+					TypedConfig: protobuf.MustMarshalAny(DownstreamTLSContext(map[string]*dag.Secret{serverSecret.Name(): serverSecret}, envoy_tls_v3.TlsParameters_TLSv1_2, nil, nil, "client-subject-name", "h2", "http/1.1")),
 				},
 			},
 		},
