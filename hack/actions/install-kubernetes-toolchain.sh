@@ -10,6 +10,10 @@ readonly KIND_VERS="v0.11.1"
 readonly SONOBUOY_VERS="0.19.0"
 readonly KUBEBUILDER_VERS="3.1.0"
 
+# The CI env variable is set by Github Actions when running jobs.
+# This is used to know how to configure specific GithubAction jobs.
+readonly CI="false"
+
 # Envtest Binaries Manager is required for newer versions. See the following for details:
 # https://github.com/projectcontour/contour/issues/3832
 readonly KUBEBUILDER_TOOLS_VERS="1.19.2"
@@ -50,7 +54,7 @@ esac
 echo "Installing Kubernetes toolchain..."
 
 # Install ginkgo CLI
-if [[ ${OS} == "linux" ]]; then
+if [[ ${GITHUB_ACTIONS} == "true" && ${OS} == "linux" ]]; then
   go get github.com/onsi/ginkgo/...
   mv /home/runner/go/bin/ginkgo ${DESTDIR}/ginkgo
 fi
