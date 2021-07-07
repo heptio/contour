@@ -35,6 +35,8 @@ toc:
         url: /config/tls-delegation
       - page: Rate Limiting
         url: /config/rate-limiting
+      - page: Access logging
+        url: /config/access-logging
       - page: Annotations Reference
         url: /config/annotations
       - page: API Reference
