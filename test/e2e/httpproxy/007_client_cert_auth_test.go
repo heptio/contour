@@ -300,7 +300,7 @@ func testClientCertAuth(namespace string) {
 				},
 			},
 		}
-		f.CreateHTTPProxyAndWaitFor(noAuthProxy, httpProxyValid)
+		f.CreateHTTPProxyAndWaitFor(noAuthProxy, e2e.HTTPProxyValid)
 
 		// This proxy requires client certificate auth.
 		authProxy := &contourv1.HTTPProxy{
@@ -330,7 +330,7 @@ func testClientCertAuth(namespace string) {
 				},
 			},
 		}
-		f.CreateHTTPProxyAndWaitFor(authProxy, httpProxyValid)
+		f.CreateHTTPProxyAndWaitFor(authProxy, e2e.HTTPProxyValid)
 
 		// This proxy does not verify client certs.
 		authSkipVerifyProxy := &contourv1.HTTPProxy{
@@ -360,7 +360,7 @@ func testClientCertAuth(namespace string) {
 				},
 			},
 		}
-		f.CreateHTTPProxyAndWaitFor(authSkipVerifyProxy, httpProxyValid)
+		f.CreateHTTPProxyAndWaitFor(authSkipVerifyProxy, e2e.HTTPProxyValid)
 
 		// This proxy requires a client certificate but does not verify it.
 		authSkipVerifyWithCAProxy := &contourv1.HTTPProxy{
@@ -391,7 +391,7 @@ func testClientCertAuth(namespace string) {
 				},
 			},
 		}
-		f.CreateHTTPProxyAndWaitFor(authSkipVerifyWithCAProxy, httpProxyValid)
+		f.CreateHTTPProxyAndWaitFor(authSkipVerifyWithCAProxy, e2e.HTTPProxyValid)
 
 		// get the valid & invalid client certs
 		validClientCert := f.Certs.GetTLSCertificate(namespace, clientCert.Spec.SecretName)

@@ -19,7 +19,7 @@ LOCALIP ?= $(shell ifconfig | grep inet | grep -v '::' | grep -v 127.0.0.1 | hea
 CONTOUR_E2E_LOCAL_HOST ?= $(LOCALIP)
 # Variables needed for running upgrade tests.
 CONTOUR_UPGRADE_FROM_VERSION ?= $(shell ./test/scripts/get-contour-upgrade-from-version.sh)
-CONTOUR_UPGRADE_TO_IMAGE ?= projectcontour/contour:main
+CONTOUR_E2E_IMAGE ?= projectcontour/contour:main
 
 TAG_LATEST ?= false
 
@@ -343,11 +343,12 @@ install-contour-release: | setup-kind-cluster ## Install the release version of 
 	./test/scripts/install-contour-release.sh $(CONTOUR_UPGRADE_FROM_VERSION)
 
 .PHONY: e2e
-e2e: | setup-kind-cluster run-e2e cleanup-kind ## Run E2E tests against a real k8s cluster
+e2e: | setup-kind-cluster load-contour-image-kind run-e2e cleanup-kind ## Run E2E tests against a real k8s cluster
 
 .PHONY: run-e2e
 run-e2e:
 	CONTOUR_E2E_LOCAL_HOST=$(CONTOUR_E2E_LOCAL_HOST) \
+		CONTOUR_E2E_IMAGE=$(CONTOUR_E2E_IMAGE) \
 		ginkgo -tags=e2e -mod=readonly -skipPackage=upgrade -keepGoing -randomizeSuites -randomizeAllSpecs -slowSpecThreshold=15 -r -v ./test/e2e
 
 .PHONY: cleanup-kind
@@ -368,7 +369,7 @@ upgrade: | install-contour-release load-contour-image-kind run-upgrade cleanup-k
 .PHONY: run-upgrade
 run-upgrade:
 	CONTOUR_UPGRADE_FROM_VERSION=$(CONTOUR_UPGRADE_FROM_VERSION) \
-		CONTOUR_UPGRADE_TO_IMAGE=$(CONTOUR_UPGRADE_TO_IMAGE) \
+		CONTOUR_E2E_IMAGE=$(CONTOUR_E2E_IMAGE) \
 		ginkgo -tags=e2e -mod=readonly -randomizeAllSpecs -slowSpecThreshold=300 -v ./test/e2e/upgrade
 
 .PHONY: check-ingress-conformance

@@ -58,7 +58,7 @@ func testTCPRouteHTTPSTermination(namespace string) {
 				},
 			},
 		}
-		f.CreateHTTPProxyAndWaitFor(p, httpProxyValid)
+		f.CreateHTTPProxyAndWaitFor(p, e2e.HTTPProxyValid)
 
 		certSecret := &corev1.Secret{}
 		key := client.ObjectKey{Namespace: namespace, Name: "echo-cert"}

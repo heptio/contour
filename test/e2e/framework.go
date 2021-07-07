@@ -123,13 +123,17 @@ func NewFramework(inClusterTestSuite bool) *Framework {
 	}
 
 	var (
-		kubeConfig  string
-		contourHost string
-		contourPort string
-		contourBin  string
+		kubeConfig   string
+		contourHost  string
+		contourPort  string
+		contourBin   string
+		contourImage string
 	)
 	if inClusterTestSuite {
-		// TODO
+		var found bool
+		if contourImage, found = os.LookupEnv("CONTOUR_E2E_IMAGE"); !found {
+			contourImage = "projectcontour/contour:main"
+		}
 	} else {
 		var found bool
 		if kubeConfig, found = os.LookupEnv("KUBECONFIG"); !found {
@@ -150,11 +154,12 @@ func NewFramework(inClusterTestSuite bool) *Framework {
 
 	deployment := &Deployment{
 		client:           crClient,
-		cmdOutputWriter:  ginkgo.GinkgoWriter,
+		logOutputWriter:  ginkgo.GinkgoWriter,
 		kubeConfig:       kubeConfig,
 		localContourHost: contourHost,
 		localContourPort: contourPort,
 		contourBin:       contourBin,
+		contourImage:     contourImage,
 	}
 	require.NoError(t, deployment.UnmarshalResources())
 
@@ -285,6 +290,31 @@ func (f *Framework) CreateTLSRouteAndWaitFor(route *gatewayv1alpha1.TLSRoute, co
 	}
 
 	return res, true
+}
+
+// Helper functions for various common conditions.
+
+// HTTPProxyValid returns true if the proxy has a .status.currentStatus
+// of "valid".
+func HTTPProxyValid(proxy *contourv1.HTTPProxy) bool {
+	return proxy != nil && proxy.Status.CurrentStatus == "valid"
+}
+
+// HTTPProxyInvalid returns true if the proxy has a .status.currentStatus
+// of "valid".
+func HTTPProxyInvalid(proxy *contourv1.HTTPProxy) bool {
+	return proxy != nil && proxy.Status.CurrentStatus == "invalid"
+}
+
+// DetailedConditionInvalid returns true if the provided detailed condition
+// list contains a condition of type "Valid" and status "False".
+func DetailedConditionInvalid(conditions []contourv1.DetailedCondition) bool {
+	for _, c := range conditions {
+		if c.Condition.Type == "Valid" {
+			return c.Condition.Status == "False"
+		}
+	}
+	return false
 }
 
 // CreateNamespace creates a namespace with the given name in the

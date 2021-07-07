@@ -18,6 +18,7 @@ package e2e
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -47,8 +48,10 @@ type Deployment struct {
 	// k8s client
 	client client.Client
 
-	// Command output is written to this writer.
-	cmdOutputWriter io.Writer
+	// Command output and other logs are written to this writer.
+	logOutputWriter io.Writer
+
+	// Fields for Local Contour deployment.
 
 	// Path to kube config to use with a local Contour.
 	kubeConfig string
@@ -58,6 +61,11 @@ type Deployment struct {
 	localContourPort string
 	// Path to Contour binary for use when running locally.
 	contourBin string
+
+	// Fields for in-cluster Contour deployment
+
+	// Contour image to use in in-cluster deployment.
+	contourImage string
 
 	Namespace                 *v1.Namespace
 	ContourServiceAccount     *v1.ServiceAccount
@@ -336,6 +344,117 @@ func (d *Deployment) WaitForEnvoyDaemonSetUpdated() error {
 	return wait.PollImmediate(time.Millisecond*50, time.Minute*3, daemonSetUpdated)
 }
 
+func (d *Deployment) EnsureResourcesForInclusterContour() error {
+	fmt.Fprintln(d.logOutputWriter, "using contour image:", d.contourImage)
+
+	fmt.Fprintln(d.logOutputWriter, "updating contour namespace")
+	if err := d.EnsureNamespace(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating contour service account")
+	if err := d.EnsureContourServiceAccount(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating envoy service account")
+	if err := d.EnsureEnvoyServiceAccount(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating contour config map")
+	if err := d.EnsureContourConfigMap(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating contour CRDs")
+	if err := d.EnsureExtensionServiceCRD(); err != nil {
+		return err
+	}
+	if err := d.EnsureHTTPProxyCRD(); err != nil {
+		return err
+	}
+	if err := d.EnsureTLSCertDelegationCRD(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating certgen service account")
+	if err := d.EnsureCertgenServiceAccount(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating contour role binding")
+	if err := d.EnsureContourRoleBinding(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating certgen role")
+	if err := d.EnsureCertgenRole(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating certgen job")
+	// Update container image.
+	if l := len(d.CertgenJob.Spec.Template.Spec.Containers); l != 1 {
+		return fmt.Errorf("invalid certgen job containers, expected 1, got %d", l)
+	}
+	d.CertgenJob.Spec.Template.Spec.Containers[0].Image = d.contourImage
+	d.CertgenJob.Spec.Template.Spec.Containers[0].ImagePullPolicy = v1.PullIfNotPresent
+	if err := d.EnsureCertgenJob(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating contour cluster role binding")
+	if err := d.EnsureContourClusterRoleBinding(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating contour cluster role")
+	if err := d.EnsureContourClusterRole(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating contour service")
+	if err := d.EnsureContourService(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating envoy service")
+	if err := d.EnsureEnvoyService(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating contour deployment")
+	// Update container image.
+	if l := len(d.ContourDeployment.Spec.Template.Spec.Containers); l != 1 {
+		return fmt.Errorf("invalid contour deployment containers, expected 1, got %d", l)
+	}
+	d.ContourDeployment.Spec.Template.Spec.Containers[0].Image = d.contourImage
+	d.ContourDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = v1.PullIfNotPresent
+	if err := d.EnsureContourDeployment(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.logOutputWriter, "updating envoy daemonset")
+	// Update container image.
+	if l := len(d.EnvoyDaemonSet.Spec.Template.Spec.InitContainers); l != 1 {
+		return fmt.Errorf("invalid envoy daemonset init containers, expected 1, got %d", l)
+	}
+	d.EnvoyDaemonSet.Spec.Template.Spec.InitContainers[0].Image = d.contourImage
+	d.EnvoyDaemonSet.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = v1.PullIfNotPresent
+	if l := len(d.EnvoyDaemonSet.Spec.Template.Spec.Containers); l != 2 {
+		return fmt.Errorf("invalid envoy daemonset containers, expected 2, got %d", l)
+	}
+	d.EnvoyDaemonSet.Spec.Template.Spec.Containers[0].Image = d.contourImage
+	d.EnvoyDaemonSet.Spec.Template.Spec.Containers[0].ImagePullPolicy = v1.PullIfNotPresent
+	d.EnvoyDaemonSet.Spec.Template.Spec.Containers[0].Args = append(d.EnvoyDaemonSet.Spec.Template.Spec.Containers[0].Args, "--check-delay=0s")
+	if err := d.EnsureEnvoyDaemonSet(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *Deployment) EnsureRateLimitResources(namespace string, configContents string) error {
 	setNamespace := d.Namespace.Name
 	if len(namespace) > 0 {
@@ -416,7 +535,7 @@ func (d *Deployment) EnsureResourcesForLocalContour() error {
 		"--xds-port="+d.localContourPort,
 		"--xds-resource-version=v3",
 	)
-	session, err := gexec.Start(bootstrapCmd, d.cmdOutputWriter, d.cmdOutputWriter)
+	session, err := gexec.Start(bootstrapCmd, d.logOutputWriter, d.logOutputWriter)
 	if err != nil {
 		return err
 	}
@@ -500,7 +619,7 @@ func (d *Deployment) StartLocalContour(config *config.Parameters, additionalArgs
 		"--config-path=" + configFile.Name(),
 		"--disable-leader-election",
 	}, additionalArgs...)
-	session, err := gexec.Start(exec.Command(d.contourBin, contourServeArgs...), d.cmdOutputWriter, d.cmdOutputWriter) // nolint:gosec
+	session, err := gexec.Start(exec.Command(d.contourBin, contourServeArgs...), d.logOutputWriter, d.logOutputWriter) // nolint:gosec
 	if err != nil {
 		return nil, "", err
 	}

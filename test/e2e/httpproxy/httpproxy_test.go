@@ -25,7 +25,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
-	contourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	"github.com/projectcontour/contour/pkg/config"
 	"github.com/projectcontour/contour/test/e2e"
 	"github.com/stretchr/testify/require"
@@ -274,9 +273,3 @@ descriptors:
 		f.NamespacedTest("020-global-rate-limiting-route-tls", withRateLimitService(testGlobalRateLimitingRouteTLS))
 	})
 })
-
-// httpProxyValid returns true if the proxy has a .status.currentStatus
-// of "valid".
-func httpProxyValid(proxy *contourv1.HTTPProxy) bool {
-	return proxy != nil && proxy.Status.CurrentStatus == "valid"
-}

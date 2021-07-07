@@ -100,6 +100,9 @@ func testTLSRoutePassthrough(namespace string) {
 		})
 		assert.Truef(t, ok, "expected 200 response code, got %d", res.StatusCode)
 		assert.Equal(t, "echo", f.GetEchoResponseBody(res.Body).Service)
+
+		// Delete catch-all route to prevent pollution in subsequent tests.
+		require.NoError(f.T(), f.Client.Delete(context.TODO(), route))
 	})
 }
 
@@ -182,5 +185,8 @@ func testTLSRouteTerminate(namespace string) {
 		})
 		assert.Truef(t, ok, "expected 200 response code, got %d", res.StatusCode)
 		assert.Equal(t, "echo", f.GetEchoResponseBody(res.Body).Service)
+
+		// Delete catch-all route to prevent pollution in subsequent tests.
+		require.NoError(f.T(), f.Client.Delete(context.TODO(), route))
 	})
 }

@@ -67,7 +67,7 @@ func testBackendTLS(namespace string) {
 							HTTP: &networkingv1.HTTPIngressRuleValue{
 								Paths: []networkingv1.HTTPIngressPath{
 									{
-										PathType: pathTypePtr(networkingv1.PathTypePrefix),
+										PathType: e2e.IngressPathTypePtr(networkingv1.PathTypePrefix),
 										Path:     "/",
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{

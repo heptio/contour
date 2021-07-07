@@ -59,7 +59,7 @@ func testHostHeaderRewrite(namespace string) {
 				},
 			},
 		}
-		f.CreateHTTPProxyAndWaitFor(p, httpProxyValid)
+		f.CreateHTTPProxyAndWaitFor(p, e2e.HTTPProxyValid)
 
 		res, ok := f.HTTP.RequestUntil(&e2e.HTTPRequestOpts{
 			Host:      p.Spec.VirtualHost.Fqdn,
