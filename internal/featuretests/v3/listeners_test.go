@@ -888,7 +888,7 @@ func TestLDSCustomAccessLogPaths(t *testing.T) {
 
 	httpListener := defaultHTTPListener()
 	httpListener.FilterChains = envoy_v3.FilterChains(
-		envoy_v3.HTTPConnectionManager("ingress_http", envoy_v3.FileAccessLogEnvoy("/tmp/http_access.log"), 0, 0),
+		envoy_v3.HTTPConnectionManager("ingress_http", envoy_v3.FileAccessLogEnvoy("/tmp/http_access.log", "", nil), 0, 0),
 	)
 
 	httpsListener := &envoy_listener_v3.Listener{
@@ -904,7 +904,7 @@ func TestLDSCustomAccessLogPaths(t *testing.T) {
 					DefaultFilters().
 					RouteConfigName("https/kuard.example.com").
 					MetricsPrefix(xdscache_v3.ENVOY_HTTPS_LISTENER).
-					AccessLoggers(envoy_v3.FileAccessLogEnvoy("/tmp/https_access.log")).
+					AccessLoggers(envoy_v3.FileAccessLogEnvoy("/tmp/https_access.log", "", nil)).
 					Get(),
 				nil, "h2", "http/1.1"),
 		},
@@ -1242,7 +1242,7 @@ func TestHTTPProxyXffNumTrustedHops(t *testing.T) {
 
 	// verify that the xff-num-trusted-hops have been set to 1.
 	httpListener := defaultHTTPListener()
-	httpListener.FilterChains = envoy_v3.FilterChains(envoy_v3.HTTPConnectionManager("ingress_http", envoy_v3.FileAccessLogEnvoy("/dev/stdout"), 0, 1))
+	httpListener.FilterChains = envoy_v3.FilterChains(envoy_v3.HTTPConnectionManager("ingress_http", envoy_v3.FileAccessLogEnvoy("/dev/stdout", "", nil), 0, 1))
 
 	c.Request(listenerType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,

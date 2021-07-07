@@ -127,15 +127,6 @@ const JSONAccessLog AccessLogType = "json"
 type AccessLogFields []string
 
 func (a AccessLogFields) Validate() error {
-	// Capture Groups:
-	// Given string "the start time is %START_TIME(%s):3% wow!"
-	//
-	//   0. Whole match "%START_TIME(%s):3%"
-	//   1. Full operator: "START_TIME(%s):3%"
-	//   2. Operator Name: "START_TIME"
-	//   3. Arguments: "(%s)"
-	//   4. Truncation length: ":3"
-	re := regexp.MustCompile(`%(([A-Z_]+)(\([^)]+\)(:[0-9]+)?)?%)?`)
 
 	for key, val := range a.AsFieldMap() {
 		if val == "" {
@@ -146,33 +137,9 @@ func (a AccessLogFields) Validate() error {
 			continue
 		}
 
-		// FindAllStringSubmatch will always return a slice with matches where every slice is a slice
-		// of submatches with length of 5 (number of capture groups + 1).
-		tokens := re.FindAllStringSubmatch(val, -1)
-		if len(tokens) == 0 {
-			continue
-		}
-
-		for _, f := range tokens {
-			op := f[2]
-			if op == "" {
-				return fmt.Errorf("invalid JSON field: %s, invalid Envoy format: %s", val, f)
-			}
-
-			_, okSimple := envoySimpleOperators[op]
-			_, okComplex := envoyComplexOperators[op]
-			if !okSimple && !okComplex {
-				return fmt.Errorf("invalid JSON field: %s, invalid Envoy format: %s, invalid Envoy operator: %s", val, f, op)
-			}
-
-			if (op == "REQ" || op == "RESP" || op == "TRAILER") && f[3] == "" {
-				return fmt.Errorf("invalid JSON field: %s, invalid Envoy format: %s, arguments required for operator: %s", val, f, op)
-			}
-
-			// START_TIME cannot not have truncation length.
-			if op == "START_TIME" && f[4] != "" {
-				return fmt.Errorf("invalid JSON field: %s, invalid Envoy format: %s, operator %s cannot have truncation length", val, f, op)
-			}
+		err := parseAccessLogFormat(val)
+		if err != nil {
+			return fmt.Errorf("invalid JSON field: %s", err)
 		}
 	}
 
@@ -206,6 +173,106 @@ func (a AccessLogFields) AsFieldMap() map[string]string {
 	}
 
 	return fieldMap
+}
+
+func validateAccessLogFormatString(format string) error {
+	// Empty format means use default format, defined by Envoy.
+	if format == "" {
+		return nil
+	}
+	err := parseAccessLogFormat(format)
+	if err != nil {
+		return fmt.Errorf("invalid access log format: %s", err)
+	}
+	if !strings.HasSuffix(format, "\n") {
+		return fmt.Errorf("invalid access log format: must end in newline")
+	}
+	return nil
+}
+
+// commandOperatorRegexp parses the command operators used in Envoy access log configuration
+//
+// Capture Groups:
+// Given string "the start time is %START_TIME(%s):3% wow!"
+//
+//   0. Whole match "%START_TIME(%s):3%"
+//   1. Full operator: "START_TIME(%s):3%"
+//   2. Operator Name: "START_TIME"
+//   3. Arguments: "(%s)"
+//   4. Truncation length: ":3"
+var commandOperatorRegexp = regexp.MustCompile(`%(([A-Z_]+)(\([^)]+\)(:[0-9]+)?)?%)?`)
+
+func parseAccessLogFormat(format string) error {
+
+	// FindAllStringSubmatch will always return a slice with matches where every slice is a slice
+	// of submatches with length of 5 (number of capture groups + 1).
+	tokens := commandOperatorRegexp.FindAllStringSubmatch(format, -1)
+	if len(tokens) == 0 {
+		return nil
+	}
+
+	for _, f := range tokens {
+		op := f[2]
+		if op == "" {
+			return fmt.Errorf("invalid Envoy format: %s", f)
+		}
+
+		_, okSimple := envoySimpleOperators[op]
+		_, okComplex := envoyComplexOperators[op]
+		if !okSimple && !okComplex {
+			return fmt.Errorf("invalid Envoy format: %s, invalid Envoy operator: %s", f, op)
+		}
+
+		if (op == "REQ" || op == "RESP" || op == "TRAILER" || op == "REQ_WITHOUT_QUERY") && f[3] == "" {
+			return fmt.Errorf("invalid Envoy format: %s, arguments required for operator: %s", f, op)
+		}
+
+		// START_TIME cannot not have truncation length.
+		if op == "START_TIME" && f[4] != "" {
+			return fmt.Errorf("invalid Envoy format: %s, operator %s cannot have truncation length", f, op)
+		}
+	}
+
+	return nil
+}
+
+// AccessLogFormatterExtensions returns a list of formatter extension names required by the access log format.
+//
+// Note: When adding support for new formatter, update the list of extensions here and
+// add corresponding configuration in internal/envoy/v3/accesslog.go extensionConfig().
+// Currently only one extension exist in Envoy.
+func (p Parameters) AccessLogFormatterExtensions() []string {
+	// Function that finds out if command operator is present in a format string.
+	contains := func(format, command string) bool {
+		tokens := commandOperatorRegexp.FindAllStringSubmatch(format, -1)
+		for _, t := range tokens {
+			if t[2] == command {
+				return true
+			}
+		}
+		return false
+	}
+
+	extensionsMap := make(map[string]bool)
+	switch p.AccessLogFormat {
+	case EnvoyAccessLog:
+		if contains(p.AccessLogFormatString, "REQ_WITHOUT_QUERY") {
+			extensionsMap["envoy.formatter.req_without_query"] = true
+		}
+	case JSONAccessLog:
+		for _, f := range p.AccessLogFields.AsFieldMap() {
+			if contains(f, "REQ_WITHOUT_QUERY") {
+				extensionsMap["envoy.formatter.req_without_query"] = true
+			}
+		}
+	}
+
+	var extensions []string
+	for k := range extensionsMap {
+		extensions = append(extensions, k)
+	}
+
+	return extensions
 }
 
 // HTTPVersionType is the name of a supported HTTP version.
@@ -517,6 +584,10 @@ type Parameters struct {
 	// Valid options are 'envoy' or 'json'
 	AccessLogFormat AccessLogType `yaml:"accesslog-format,omitempty"`
 
+	// AccessLogFormatString sets the access log format when format is set to `envoy`.
+	// When empty, Envoy's default format is used.
+	AccessLogFormatString string `yaml:"accesslog-format-string,omitempty"`
+
 	// AccessLogFields sets the fields that JSON logging will
 	// output when AccessLogFormat is json.
 	AccessLogFields AccessLogFields `yaml:"json-fields,omitempty"`
@@ -616,6 +687,10 @@ func (p *Parameters) Validate() error {
 	}
 
 	if err := p.AccessLogFields.Validate(); err != nil {
+		return err
+	}
+
+	if err := validateAccessLogFormatString(p.AccessLogFormatString); err != nil {
 		return err
 	}
 

@@ -69,7 +69,7 @@ func globalRateLimitFilterExists(t *testing.T, rh cache.ResourceEventHandler, c 
 	hcm := envoy_v3.HTTPConnectionManagerBuilder().
 		RouteConfigName("ingress_http").
 		MetricsPrefix("ingress_http").
-		AccessLoggers(envoy_v3.FileAccessLogEnvoy("/dev/stdout")).
+		AccessLoggers(envoy_v3.FileAccessLogEnvoy("/dev/stdout", "", nil)).
 		DefaultFilters().
 		AddFilter(&http.HttpFilter{
 			Name: wellknown.HTTPRateLimit,

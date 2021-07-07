@@ -296,6 +296,8 @@ func doServe(log logrus.FieldLogger, ctx *serveContext) error {
 		HTTPSAccessLog:                ctx.httpsAccessLog,
 		AccessLogType:                 ctx.Config.AccessLogFormat,
 		AccessLogFields:               ctx.Config.AccessLogFields,
+		AccessLogFormatString:         ctx.Config.AccessLogFormatString,
+		AccessLogFormatterExtensions:  ctx.Config.AccessLogFormatterExtensions(),
 		MinimumTLSVersion:             annotation.MinTLSVersion(ctx.Config.TLS.MinimumProtocolVersion, "1.2"),
 		CipherSuites:                  config.SanitizeCipherSuites(ctx.Config.TLS.CipherSuites),
 		RequestTimeout:                requestTimeout,

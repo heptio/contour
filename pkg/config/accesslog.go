@@ -108,8 +108,9 @@ var envoySimpleOperators = map[string]struct{}{
 // envoyComplexOperators is the list of known Envoy log template keywords that require
 // arguments.
 var envoyComplexOperators = map[string]struct{}{
-	"REQ":        {},
-	"RESP":       {},
-	"START_TIME": {},
-	"TRAILER":    {},
+	"REQ":               {},
+	"RESP":              {},
+	"START_TIME":        {},
+	"TRAILER":           {},
+	"REQ_WITHOUT_QUERY": {},
 }

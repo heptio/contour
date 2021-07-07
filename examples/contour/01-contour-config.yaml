@@ -54,6 +54,8 @@ data:
     ### Logging options
     # Default setting
     accesslog-format: envoy
+    # The default access log format is defined by Envoy but it can be customized by setting following variable.
+    # accesslog-format-string: "...\n"
     # To enable JSON logging in Envoy
     # accesslog-format: json
     # The default fields that will be logged are specified below.

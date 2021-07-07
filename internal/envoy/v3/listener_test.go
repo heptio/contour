@@ -67,13 +67,13 @@ func TestListener(t *testing.T) {
 			address: "0.0.0.0",
 			port:    9000,
 			f: []*envoy_listener_v3.Filter{
-				HTTPConnectionManager("http", FileAccessLogEnvoy("/dev/null"), 0, 0),
+				HTTPConnectionManager("http", FileAccessLogEnvoy("/dev/null", "", nil), 0, 0),
 			},
 			want: &envoy_listener_v3.Listener{
 				Name:    "http",
 				Address: SocketAddress("0.0.0.0", 9000),
 				FilterChains: FilterChains(
-					HTTPConnectionManager("http", FileAccessLogEnvoy("/dev/null"), 0, 0),
+					HTTPConnectionManager("http", FileAccessLogEnvoy("/dev/null", "", nil), 0, 0),
 				),
 				SocketOptions: TCPKeepaliveSocketOptions(),
 			},
@@ -86,7 +86,7 @@ func TestListener(t *testing.T) {
 				ProxyProtocol(),
 			},
 			f: []*envoy_listener_v3.Filter{
-				HTTPConnectionManager("http-proxy", FileAccessLogEnvoy("/dev/null"), 0, 0),
+				HTTPConnectionManager("http-proxy", FileAccessLogEnvoy("/dev/null", "", nil), 0, 0),
 			},
 			want: &envoy_listener_v3.Listener{
 				Name:    "http-proxy",
@@ -95,7 +95,7 @@ func TestListener(t *testing.T) {
 					ProxyProtocol(),
 				),
 				FilterChains: FilterChains(
-					HTTPConnectionManager("http-proxy", FileAccessLogEnvoy("/dev/null"), 0, 0),
+					HTTPConnectionManager("http-proxy", FileAccessLogEnvoy("/dev/null", "", nil), 0, 0),
 				),
 				SocketOptions: TCPKeepaliveSocketOptions(),
 			},
@@ -389,7 +389,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 	}{
 		"default": {
 			routename:    "default/kuard",
-			accesslogger: FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger: FileAccessLogEnvoy("/dev/stdout", "", nil),
 			want: &envoy_listener_v3.Filter{
 				Name: wellknown.HTTPConnectionManager,
 				ConfigType: &envoy_listener_v3.Filter_TypedConfig{
@@ -465,7 +465,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 							AcceptHttp_10: true,
 						},
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{},
-						AccessLog:                 FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:                 FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress:          protobuf.Bool(true),
 						NormalizePath:             protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -479,7 +479,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 		},
 		"request timeout of 10s": {
 			routename:      "default/kuard",
-			accesslogger:   FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger:   FileAccessLogEnvoy("/dev/stdout", "", nil),
 			requestTimeout: timeout.DurationSetting(10 * time.Second),
 			want: &envoy_listener_v3.Filter{
 				Name: wellknown.HTTPConnectionManager,
@@ -556,7 +556,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 							AcceptHttp_10: true,
 						},
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{},
-						AccessLog:                 FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:                 FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress:          protobuf.Bool(true),
 						NormalizePath:             protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -571,7 +571,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 		},
 		"connection idle timeout of 90s": {
 			routename:             "default/kuard",
-			accesslogger:          FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger:          FileAccessLogEnvoy("/dev/stdout", "", nil),
 			connectionIdleTimeout: timeout.DurationSetting(90 * time.Second),
 			want: &envoy_listener_v3.Filter{
 				Name: wellknown.HTTPConnectionManager,
@@ -650,7 +650,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{
 							IdleTimeout: protobuf.Duration(90 * time.Second),
 						},
-						AccessLog:        FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:        FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress: protobuf.Bool(true),
 						NormalizePath:    protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -664,7 +664,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 		},
 		"stream idle timeout of 90s": {
 			routename:         "default/kuard",
-			accesslogger:      FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger:      FileAccessLogEnvoy("/dev/stdout", "", nil),
 			streamIdleTimeout: timeout.DurationSetting(90 * time.Second),
 			want: &envoy_listener_v3.Filter{
 				Name: wellknown.HTTPConnectionManager,
@@ -741,7 +741,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 							AcceptHttp_10: true,
 						},
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{},
-						AccessLog:                 FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:                 FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress:          protobuf.Bool(true),
 						NormalizePath:             protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -756,7 +756,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 		},
 		"max connection duration of 90s": {
 			routename:             "default/kuard",
-			accesslogger:          FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger:          FileAccessLogEnvoy("/dev/stdout", "", nil),
 			maxConnectionDuration: timeout.DurationSetting(90 * time.Second),
 			want: &envoy_listener_v3.Filter{
 				Name: wellknown.HTTPConnectionManager,
@@ -835,7 +835,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{
 							MaxConnectionDuration: protobuf.Duration(90 * time.Second),
 						},
-						AccessLog:        FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:        FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress: protobuf.Bool(true),
 						NormalizePath:    protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -849,7 +849,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 		},
 		"when max connection duration is disabled, it's omitted": {
 			routename:             "default/kuard",
-			accesslogger:          FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger:          FileAccessLogEnvoy("/dev/stdout", "", nil),
 			maxConnectionDuration: timeout.DisabledSetting(),
 			want: &envoy_listener_v3.Filter{
 				Name: wellknown.HTTPConnectionManager,
@@ -926,7 +926,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 							AcceptHttp_10: true,
 						},
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{},
-						AccessLog:                 FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:                 FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress:          protobuf.Bool(true),
 						NormalizePath:             protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -940,7 +940,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 		},
 		"delayed close timeout of 90s": {
 			routename:           "default/kuard",
-			accesslogger:        FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger:        FileAccessLogEnvoy("/dev/stdout", "", nil),
 			delayedCloseTimeout: timeout.DurationSetting(90 * time.Second),
 			want: &envoy_listener_v3.Filter{
 				Name: wellknown.HTTPConnectionManager,
@@ -1017,7 +1017,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 							AcceptHttp_10: true,
 						},
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{},
-						AccessLog:                 FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:                 FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress:          protobuf.Bool(true),
 						NormalizePath:             protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -1032,7 +1032,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 		},
 		"drain timeout of 90s": {
 			routename:                     "default/kuard",
-			accesslogger:                  FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger:                  FileAccessLogEnvoy("/dev/stdout", "", nil),
 			connectionShutdownGracePeriod: timeout.DurationSetting(90 * time.Second),
 			want: &envoy_listener_v3.Filter{
 				Name: wellknown.HTTPConnectionManager,
@@ -1109,7 +1109,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 							AcceptHttp_10: true,
 						},
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{},
-						AccessLog:                 FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:                 FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress:          protobuf.Bool(true),
 						NormalizePath:             protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -1124,7 +1124,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 		},
 		"enable allow_chunked_length": {
 			routename:                     "default/kuard",
-			accesslogger:                  FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger:                  FileAccessLogEnvoy("/dev/stdout", "", nil),
 			connectionShutdownGracePeriod: timeout.DurationSetting(90 * time.Second),
 			allowChunkedLength:            true,
 			want: &envoy_listener_v3.Filter{
@@ -1203,7 +1203,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 							AllowChunkedLength: true,
 						},
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{},
-						AccessLog:                 FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:                 FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress:          protobuf.Bool(true),
 						NormalizePath:             protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -1218,7 +1218,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 		},
 		"enable XffNumTrustedHops": {
 			routename:                     "default/kuard",
-			accesslogger:                  FileAccessLogEnvoy("/dev/stdout"),
+			accesslogger:                  FileAccessLogEnvoy("/dev/stdout", "", nil),
 			connectionShutdownGracePeriod: timeout.DurationSetting(90 * time.Second),
 			xffNumTrustedHops:             1,
 			want: &envoy_listener_v3.Filter{
@@ -1296,7 +1296,7 @@ func TestHTTPConnectionManager(t *testing.T) {
 							AcceptHttp_10: true,
 						},
 						CommonHttpProtocolOptions: &envoy_core_v3.HttpProtocolOptions{},
-						AccessLog:                 FileAccessLogEnvoy("/dev/stdout"),
+						AccessLog:                 FileAccessLogEnvoy("/dev/stdout", "", nil),
 						UseRemoteAddress:          protobuf.Bool(true),
 						NormalizePath:             protobuf.Bool(true),
 						StripPortMode: &http.HttpConnectionManager_StripAnyHostPort{
@@ -1384,7 +1384,7 @@ func TestTCPProxy(t *testing.T) {
 						ClusterSpecifier: &envoy_tcp_proxy_v3.TcpProxy_Cluster{
 							Cluster: envoy.Clustername(c1),
 						},
-						AccessLog:   FileAccessLogEnvoy(accessLogPath),
+						AccessLog:   FileAccessLogEnvoy(accessLogPath, "", nil),
 						IdleTimeout: protobuf.Duration(9001 * time.Second),
 					}),
 				},
@@ -1410,7 +1410,7 @@ func TestTCPProxy(t *testing.T) {
 								}},
 							},
 						},
-						AccessLog:   FileAccessLogEnvoy(accessLogPath),
+						AccessLog:   FileAccessLogEnvoy(accessLogPath, "", nil),
 						IdleTimeout: protobuf.Duration(9001 * time.Second),
 					}),
 				},
@@ -1420,7 +1420,7 @@ func TestTCPProxy(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := TCPProxy(statPrefix, tc.proxy, FileAccessLogEnvoy(accessLogPath))
+			got := TCPProxy(statPrefix, tc.proxy, FileAccessLogEnvoy(accessLogPath, "", nil))
 			protobuf.ExpectEqual(t, tc.want, got)
 		})
 	}
