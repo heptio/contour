@@ -449,6 +449,7 @@ func HTTPConnectionManager(routename string, accesslogger []*accesslog.AccessLog
 }
 
 // HTTPConnectionManagerBuilder creates a new HTTP connection manager builder.
+// nolint:revive
 func HTTPConnectionManagerBuilder() *httpConnectionManagerBuilder {
 	return &httpConnectionManagerBuilder{}
 }

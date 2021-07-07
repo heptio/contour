@@ -450,10 +450,7 @@ func (h PolicyParameters) Validate() error {
 	if err := h.RequestHeadersPolicy.Validate(); err != nil {
 		return err
 	}
-	if err := h.ResponseHeadersPolicy.Validate(); err != nil {
-		return err
-	}
-	return nil
+	return h.ResponseHeadersPolicy.Validate()
 }
 
 // ClusterParameters holds various configurable cluster values.

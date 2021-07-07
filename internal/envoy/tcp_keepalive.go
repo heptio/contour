@@ -17,6 +17,7 @@ import "syscall"
 
 // We only support Envoy on Linux so always configure Linux TCP keep-alive
 // socket options regardless of the platform that Contour is running on.
+// nolint:revive
 const (
 	TCP_KEEPIDLE  = 0x4 // Linux syscall.TCP_KEEPIDLE
 	TCP_KEEPINTVL = 0x5 // Linux syscall.TCP_KEEPINTVL

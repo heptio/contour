@@ -39,6 +39,7 @@ var DefaultFields = AccessLogFields([]string{
 })
 
 // DEFAULT_ACCESS_LOG_TYPE is the default access log format.
+// nolint:revive
 const DEFAULT_ACCESS_LOG_TYPE = EnvoyAccessLog
 
 // jsonFields is the canonical translation table for JSON fields to Envoy log template formats,

@@ -284,7 +284,7 @@ type grpcStream interface {
 	Recv() (*envoy_discovery_v3.DiscoveryResponse, error)
 }
 
-type statusResult struct {
+type StatusResult struct {
 	*Contour
 
 	Err  error
@@ -293,7 +293,7 @@ type statusResult struct {
 
 // Equals asserts that the status result is not an error and matches
 // the wanted status exactly.
-func (s *statusResult) Equals(want contour_api_v1.HTTPProxyStatus) *Contour {
+func (s *StatusResult) Equals(want contour_api_v1.HTTPProxyStatus) *Contour {
 	s.T.Helper()
 
 	// We should never get an error fetching the status for an
@@ -308,7 +308,7 @@ func (s *statusResult) Equals(want contour_api_v1.HTTPProxyStatus) *Contour {
 
 // Like asserts that the status result is not an error and matches
 // non-empty fields in the wanted status.
-func (s *statusResult) Like(want contour_api_v1.HTTPProxyStatus) *Contour {
+func (s *StatusResult) Like(want contour_api_v1.HTTPProxyStatus) *Contour {
 	s.T.Helper()
 
 	// We should never get an error fetching the status for an
@@ -336,7 +336,7 @@ func (s *statusResult) Like(want contour_api_v1.HTTPProxyStatus) *Contour {
 
 // HasError asserts that there is an error on the Valid Condition in the proxy
 // that matches the given values.
-func (s *statusResult) HasError(condType string, reason, message string) *Contour {
+func (s *StatusResult) HasError(condType string, reason, message string) *Contour {
 	assert.Equal(s.T, s.Have.CurrentStatus, string(status.ProxyStatusInvalid))
 	assert.Equal(s.T, s.Have.Description, `At least one error present, see Errors for details`)
 	validCond := s.Have.GetConditionFor(contour_api_v1.ValidConditionType)
@@ -353,7 +353,7 @@ func (s *statusResult) HasError(condType string, reason, message string) *Contou
 }
 
 // IsValid asserts that the proxy's CurrentStatus field is equal to "valid".
-func (s *statusResult) IsValid() *Contour {
+func (s *StatusResult) IsValid() *Contour {
 	s.T.Helper()
 
 	assert.Equal(s.T, status.ProxyStatusValid, status.ProxyStatus(s.Have.CurrentStatus))
@@ -362,7 +362,7 @@ func (s *statusResult) IsValid() *Contour {
 }
 
 // IsInvalid asserts that the proxy's CurrentStatus field is equal to "invalid".
-func (s *statusResult) IsInvalid() *Contour {
+func (s *StatusResult) IsInvalid() *Contour {
 	s.T.Helper()
 
 	assert.Equal(s.T, status.ProxyStatusInvalid, status.ProxyStatus(s.Have.CurrentStatus))
@@ -377,12 +377,12 @@ type Contour struct {
 	statusUpdateCache *k8s.StatusUpdateCacher
 }
 
-// Status returns a statusResult object that can be used to assert
+// Status returns a StatusResult object that can be used to assert
 // on object status fields.
-func (c *Contour) Status(obj interface{}) *statusResult {
+func (c *Contour) Status(obj interface{}) *StatusResult {
 	s, err := c.statusUpdateCache.GetStatus(obj)
 
-	return &statusResult{
+	return &StatusResult{
 		Contour: c,
 		Err:     err,
 		Have:    s,

@@ -17,6 +17,7 @@ import (
 	envoy_config_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 )
 
+// nolint:revive
 const CONSTANT_HASH_VALUE = "contour"
 
 // ConstantHashV3 is a specialized node ID hasher used to allow

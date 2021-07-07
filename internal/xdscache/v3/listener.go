@@ -34,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// nolint:golint
+// nolint:revive
 const (
 	ENVOY_HTTP_LISTENER            = "ingress_http"
 	ENVOY_FALLBACK_ROUTECONFIG     = "ingress_fallbackcert"

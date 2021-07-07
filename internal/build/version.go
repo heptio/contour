@@ -18,7 +18,7 @@ import (
 )
 
 // BuildInfo is a struct for build information.
-// nolint:golint
+// nolint:revive
 type BuildInfo struct {
 	Branch  string `yaml:"branch,omitempty"`
 	Sha     string `yaml:"sha,omitempty"`

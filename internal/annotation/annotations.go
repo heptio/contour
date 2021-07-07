@@ -24,6 +24,7 @@ import (
 )
 
 // DEFAULT_INGRESS_CLASS_NAME is the Contour default.
+// nolint:revive
 const DEFAULT_INGRESS_CLASS_NAME = "contour"
 
 // IsKnown checks if an annotation is one Contour knows about.

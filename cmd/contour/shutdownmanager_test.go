@@ -198,6 +198,7 @@ func TestParseOpenConnections(t *testing.T) {
 	})
 }
 
+// nolint:revive
 const (
 	VALIDHTTP = `envoy_cluster_circuit_breakers_default_cx_pool_open{envoy_cluster_name="projectcontour_service-stats_9001"} 0
 envoy_cluster_max_host_weight{envoy_cluster_name="projectcontour_service-stats_9001"} 0
