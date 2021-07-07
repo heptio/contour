@@ -59,6 +59,10 @@ func TestTCPProxy(t *testing.T) {
 					SecretName: s1.Name,
 				},
 			},
+			// TODO(tsaarni)
+			// According to HTTPProxy documentation, routes should not be processed if HTTPProxy is in tcpproxy mode.
+			// Consider removing routes from this test case, and create separate tests for tcpproxies with routes.
+			// See also https://github.com/projectcontour/contour/issues/3800
 			Routes: []contour_api_v1.Route{{
 				Conditions: matchconditions(prefixMatchCondition("/")),
 				Services: []contour_api_v1.Service{{
@@ -75,9 +79,15 @@ func TestTCPProxy(t *testing.T) {
 		},
 	}
 	rh.OnAdd(hp1)
-
 	c.Request(listenerType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
+			// TODO(tsaarni)
+			// Reference to non-existing backend ("wrong-backend" above) does not anymore prevent processing of routes, since
+			// we would generally program 502/503 responses for missing services.
+			// Currently in tcpproxy mode, this will trigger creation of HTTP listener for HTTPS upgrade redirect.
+			// However, the reason for HTTP listener should have been HTTPS upgrade redirect for tcpproxy, not routes,
+			// See also https://github.com/projectcontour/contour/issues/3800
+			defaultHTTPListener(),
 			&envoy_listener_v3.Listener{
 				Name:    "ingress_https",
 				Address: envoy_v3.SocketAddress("0.0.0.0", 8443),
@@ -97,7 +107,20 @@ func TestTCPProxy(t *testing.T) {
 	// check that ingress_http is empty
 	c.Request(routeType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
-			envoy_v3.RouteConfiguration("ingress_http"),
+			envoy_v3.RouteConfiguration("ingress_http",
+				envoy_v3.VirtualHost("kuard-tcp.example.com",
+					&envoy_route_v3.Route{
+						Match: routePrefix("/"),
+						Action: &envoy_route_v3.Route_Redirect{
+							Redirect: &envoy_route_v3.RedirectAction{
+								SchemeRewriteSpecifier: &envoy_route_v3.RedirectAction_HttpsRedirect{
+									HttpsRedirect: true,
+								},
+							},
+						},
+					},
+				),
+			),
 		),
 		TypeUrl: routeType,
 	})
@@ -211,6 +234,10 @@ func TestTCPProxyTLSPassthrough(t *testing.T) {
 					Passthrough: true,
 				},
 			},
+			// TODO(tsaarni)
+			// According to HTTPProxy documentation, routes should not be processed if HTTPProxy is in tcpproxy mode.
+			// Consider removing routes from this test case, and create separate tests for tcpproxies with routes.
+			// See also https://github.com/projectcontour/contour/issues/3800
 			Routes: []contour_api_v1.Route{{
 				Conditions: matchconditions(prefixMatchCondition("/")),
 				Services: []contour_api_v1.Service{{
@@ -230,6 +257,13 @@ func TestTCPProxyTLSPassthrough(t *testing.T) {
 
 	c.Request(listenerType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
+			// TODO(tsaarni)
+			// Reference to non-existing backend ("wrong-backend" above) does not anymore prevent processing of routes, since
+			// we would generally program 502/503 responses for missing services.
+			// Currently in tcpproxy mode, this will trigger creation of HTTP listener for HTTPS upgrade redirect.
+			// However, the reason for HTTP listener should have been HTTPS upgrade redirect for tcpproxy, not routes,
+			// See also https://github.com/projectcontour/contour/issues/3800
+			defaultHTTPListener(),
 			&envoy_listener_v3.Listener{
 				Name:    "ingress_https",
 				Address: envoy_v3.SocketAddress("0.0.0.0", 8443),
@@ -254,7 +288,20 @@ func TestTCPProxyTLSPassthrough(t *testing.T) {
 	// check that ingress_http is empty
 	c.Request(routeType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
-			envoy_v3.RouteConfiguration("ingress_http"),
+			envoy_v3.RouteConfiguration("ingress_http",
+				envoy_v3.VirtualHost("kuard-tcp.example.com",
+					&envoy_route_v3.Route{
+						Match: routePrefix("/"),
+						Action: &envoy_route_v3.Route_Redirect{
+							Redirect: &envoy_route_v3.RedirectAction{
+								SchemeRewriteSpecifier: &envoy_route_v3.RedirectAction_HttpsRedirect{
+									HttpsRedirect: true,
+								},
+							},
+						},
+					},
+				),
+			),
 		),
 		TypeUrl: routeType,
 	})
