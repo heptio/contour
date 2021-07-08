@@ -115,18 +115,22 @@ func TestGatewayClass(t *testing.T) {
 			},
 			expect: true,
 		},
-		"invalid gatewayclass params": {
+		"gatewayclass paramsRef specified": {
 			mutateNew: func(gc *gatewayapi_v1alpha1.GatewayClass) {
-				gc.Name = "invalid-gatewayclass-params"
+				gc.Name = "gatewayclass-params-specified"
 				gc.Spec.ParametersRef = &gatewayapi_v1alpha1.ParametersReference{
 					Group: "foo",
 					Kind:  "bar",
 					Name:  "baz",
 				}
 			},
-			errType:  field.ErrorTypeNotSupported,
-			errField: "spec.parametersRef",
-			expect:   false,
+			expect: true,
+		},
+		"gatewayclass paramsRef not specified": {
+			mutateNew: func(gc *gatewayapi_v1alpha1.GatewayClass) {
+				gc.Name = "gatewayclass-params-not-specified"
+			},
+			expect: true,
 		},
 	}
 

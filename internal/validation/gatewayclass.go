@@ -73,9 +73,5 @@ func validateGatewayClassSpec(ctx context.Context, cli client.Client, gc *gatewa
 		}
 	}
 
-	ref := gc.Spec.ParametersRef
-	if ref != nil {
-		errs = append(errs, field.NotSupported(path.Child("parametersRef"), ref, []string{"nil"}))
-	}
 	return errs
 }

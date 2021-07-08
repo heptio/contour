@@ -26,6 +26,7 @@ import (
 )
 
 var _ = Describe("GatewayClass Controller", func() {
+
 	Context("Managed GatewayClass", func() {
 		It("Should surface admitted status", func() {
 			key := types.NamespacedName{Name: "test-gatewayclass-" + rand.String(10)}
@@ -174,11 +175,11 @@ var _ = Describe("GatewayClass Controller", func() {
 		})
 	})
 
-	Context("Managed GatewayClass", func() {
-		It("With parameterRefs should not be admitted", func() {
+	Context("GatewayClass with parametersRef", func() {
+		It("With parametersRefs should be admitted", func() {
 			key := types.NamespacedName{Name: "test-gatewayclass-" + rand.String(10)}
 
-			unsupported := &gatewayv1alpha1.GatewayClass{
+			admitted := &gatewayv1alpha1.GatewayClass{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.Name,
 					Namespace: key.Namespace,
@@ -194,14 +195,28 @@ var _ = Describe("GatewayClass Controller", func() {
 			}
 
 			// Create
-			Expect(cl.Create(context.Background(), unsupported)).Should(Succeed())
+			Expect(cl.Create(context.Background(), admitted)).Should(Succeed())
 
-			By("Expecting not admitted status")
-			Consistently(func() bool {
+			By("Expecting admitted status")
+			Eventually(func() bool {
 				gc := &gatewayv1alpha1.GatewayClass{}
 				_ = cl.Get(context.Background(), key, gc)
 				return isGatewayClassAdmitted(gc)
-			}, timeout, interval).Should(BeFalse())
+			}, timeout, interval).Should(BeTrue())
+
+			// Delete
+			By("Expecting successful deletion")
+			Eventually(func() error {
+				gc := &gatewayv1alpha1.GatewayClass{}
+				_ = cl.Get(context.Background(), key, gc)
+				return cl.Delete(context.Background(), gc)
+			}, timeout, interval).Should(Succeed())
+
+			By("Expecting delete to finish")
+			Eventually(func() bool {
+				gc := &gatewayv1alpha1.GatewayClass{}
+				return errors.IsNotFound(cl.Get(context.Background(), key, gc))
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 })
