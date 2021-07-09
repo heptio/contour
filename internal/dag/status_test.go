@@ -31,6 +31,18 @@ import (
 	gatewayapi_v1alpha1 "sigs.k8s.io/gateway-api/apis/v1alpha1"
 )
 
+var validGatewayConditionsUpdate = []*status.GatewayConditionsUpdate{{
+	FullName: types.NamespacedName{Namespace: "projectcontour", Name: "contour"},
+	Conditions: map[gatewayapi_v1alpha1.GatewayConditionType]metav1.Condition{
+		gatewayapi_v1alpha1.GatewayConditionReady: {
+			Type:    string(gatewayapi_v1alpha1.GatewayConditionReady),
+			Status:  contour_api_v1.ConditionTrue,
+			Reason:  status.ReasonValidGateway,
+			Message: status.MessageValidGateway,
+		},
+	},
+}}
+
 func TestDAGStatus(t *testing.T) {
 
 	type testcase struct {
@@ -2486,8 +2498,10 @@ func TestDAGStatus(t *testing.T) {
 func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 
 	type testcase struct {
-		objs []interface{}
-		want []*status.RouteConditionsUpdate
+		objs                  []interface{}
+		gateway               *gatewayapi_v1alpha1.Gateway
+		wantRouteConditions   []*status.RouteConditionsUpdate
+		wantGatewayConditions []*status.GatewayConditionsUpdate
 	}
 
 	run := func(t *testing.T, desc string, tc testcase) {
@@ -2519,26 +2533,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 							},
 						},
 					},
-					gateway: &gatewayapi_v1alpha1.Gateway{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "contour",
-							Namespace: "projectcontour",
-						},
-						Spec: gatewayapi_v1alpha1.GatewaySpec{
-							Listeners: []gatewayapi_v1alpha1.Listener{{
-								Port:     80,
-								Protocol: gatewayapi_v1alpha1.HTTPProtocolType,
-								Routes: gatewayapi_v1alpha1.RouteBindingSelector{
-									Selector: &metav1.LabelSelector{
-										MatchLabels: map[string]string{
-											"app": "contour",
-										},
-									},
-									Kind: KindHTTPRoute,
-								},
-							}},
-						},
-					},
+					gateway: tc.gateway,
 				},
 				Processors: []Processor{
 					&IngressProcessor{
@@ -2551,11 +2546,37 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					&ListenerProcessor{},
 				},
 			}
+
+			// Set a default gateway if not defined by a test
+			if tc.gateway == nil {
+				builder.Source.gateway = &gatewayapi_v1alpha1.Gateway{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "contour",
+						Namespace: "projectcontour",
+					},
+					Spec: gatewayapi_v1alpha1.GatewaySpec{
+						Listeners: []gatewayapi_v1alpha1.Listener{{
+							Port:     80,
+							Protocol: gatewayapi_v1alpha1.HTTPProtocolType,
+							Routes: gatewayapi_v1alpha1.RouteBindingSelector{
+								Selector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"app": "contour",
+									},
+								},
+								Kind: KindHTTPRoute,
+							},
+						}},
+					},
+				}
+			}
+
 			for _, o := range tc.objs {
 				builder.Source.Insert(o)
 			}
 			dag := builder.Build()
-			gotUpdates := dag.StatusCache.GetRouteUpdates()
+			gotRouteUpdates := dag.StatusCache.GetRouteUpdates()
+			gotGatewayUpdates := dag.StatusCache.GetGatewayUpdates()
 
 			ops := []cmp.Option{
 				cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),
@@ -2564,13 +2585,22 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				cmpopts.IgnoreFields(status.RouteConditionsUpdate{}, "Generation"),
 				cmpopts.IgnoreFields(status.RouteConditionsUpdate{}, "TransitionTime"),
 				cmpopts.IgnoreFields(status.RouteConditionsUpdate{}, "Resource"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "ExistingConditions"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "GatewayRef"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "Generation"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "TransitionTime"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "Resource"),
 				cmpopts.SortSlices(func(i, j metav1.Condition) bool {
 					return i.Message < j.Message
 				}),
 			}
 
-			if diff := cmp.Diff(tc.want, gotUpdates, ops...); diff != "" {
-				t.Fatalf("expected: %v, got %v", tc.want, diff)
+			if diff := cmp.Diff(tc.wantRouteConditions, gotRouteUpdates, ops...); diff != "" {
+				t.Fatalf("expected route status: %v, got %v", tc.wantRouteConditions, diff)
+			}
+
+			if diff := cmp.Diff(tc.wantGatewayConditions, gotGatewayUpdates, ops...); diff != "" {
+				t.Fatalf("expected gateway status: %v, got %v", tc.wantGatewayConditions, diff)
 			}
 
 		})
@@ -2618,7 +2648,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				gatewayapi_v1alpha1.ConditionRouteAdmitted: {
@@ -2629,6 +2659,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "invalid prefix match for httproute", testcase{
@@ -2663,7 +2694,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				gatewayapi_v1alpha1.ConditionRouteAdmitted: {
@@ -2680,6 +2711,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "regular expression match not yet supported for httproute", testcase{
@@ -2709,7 +2741,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				gatewayapi_v1alpha1.ConditionRouteAdmitted: {
@@ -2726,6 +2758,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "RegularExpression header match not yet supported for httproute", testcase{
@@ -2764,7 +2797,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				gatewayapi_v1alpha1.ConditionRouteAdmitted: {
@@ -2781,6 +2814,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "spec.tls not yet supported for httproute", testcase{
@@ -2817,7 +2851,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				gatewayapi_v1alpha1.ConditionRouteAdmitted: {
@@ -2834,6 +2868,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "spec.rules.forwardTo.serviceName not specified", testcase{
@@ -2863,7 +2898,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionResolvedRefs: {
@@ -2880,6 +2915,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "spec.rules.forwardTo.serviceName invalid on two matches", testcase{
@@ -2924,7 +2960,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionResolvedRefs: {
@@ -2941,6 +2977,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "spec.rules.forwardTo.servicePort not specified", testcase{
@@ -2970,7 +3007,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionResolvedRefs: {
@@ -2987,6 +3024,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "spec.rules.forwardTo not specified", testcase{
@@ -3012,7 +3050,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionResolvedRefs: {
@@ -3029,6 +3067,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "spec.rules.hostname: invalid wildcard", testcase{
@@ -3054,7 +3093,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionResolvedRefs: {
@@ -3071,6 +3110,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "spec.rules.hostname: invalid hostname", testcase{
@@ -3096,7 +3136,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionResolvedRefs: {
@@ -3113,6 +3153,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "spec.rules.hostname: invalid hostname, ip address", testcase{
@@ -3138,7 +3179,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionResolvedRefs: {
@@ -3155,6 +3196,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "HTTPRouteFilterRequestMirror not yet supported for httproute rule", testcase{
@@ -3187,7 +3229,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionNotImplemented: {
@@ -3204,6 +3246,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "HTTPRouteFilterRequestMirror not yet supported for httproute forwardto", testcase{
@@ -3237,7 +3280,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionNotImplemented: {
@@ -3254,6 +3297,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "Invalid RequestHeaderModifier due to duplicated headers", testcase{
@@ -3289,7 +3333,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionResolvedRefs: {
@@ -3306,6 +3350,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "Invalid RequestHeaderModifier after forward due to invalid headers", testcase{
@@ -3341,7 +3386,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				status.ConditionResolvedRefs: {
@@ -3358,6 +3403,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
 	})
 
 	run(t, "gateway selectors match but spec.gateways.allowtype doesn't", testcase{
@@ -3383,7 +3429,7 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 					}},
 				},
 			}},
-		want: []*status.RouteConditionsUpdate{{
+		wantRouteConditions: []*status.RouteConditionsUpdate{{
 			FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 			Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 				gatewayapi_v1alpha1.ConditionRouteAdmitted: {
@@ -3394,15 +3440,55 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				},
 			},
 		}},
+		wantGatewayConditions: validGatewayConditionsUpdate,
+	})
+
+	run(t, "gateway.spec.addresses results in invalid gateway", testcase{
+		objs: []interface{}{},
+		gateway: &gatewayapi_v1alpha1.Gateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "contour",
+				Namespace: "projectcontour",
+			},
+			Spec: gatewayapi_v1alpha1.GatewaySpec{
+				Addresses: []gatewayapi_v1alpha1.GatewayAddress{{
+					Value: "1.2.3.4",
+				}},
+				Listeners: []gatewayapi_v1alpha1.Listener{{
+					Port:     80,
+					Protocol: gatewayapi_v1alpha1.HTTPProtocolType,
+					Routes: gatewayapi_v1alpha1.RouteBindingSelector{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "contour",
+							},
+						},
+						Kind: KindHTTPRoute,
+					},
+				}},
+			},
+		},
+		wantGatewayConditions: []*status.GatewayConditionsUpdate{{
+			FullName: types.NamespacedName{Namespace: "projectcontour", Name: "contour"},
+			Conditions: map[gatewayapi_v1alpha1.GatewayConditionType]metav1.Condition{
+				gatewayapi_v1alpha1.GatewayConditionReady: {
+					Type:    string(gatewayapi_v1alpha1.GatewayConditionReady),
+					Status:  contour_api_v1.ConditionFalse,
+					Reason:  status.ReasonInvalidGateway,
+					Message: "Unsupported value for spec; Spec.Addresses is not supported",
+				},
+			},
+		}},
 	})
 }
 
 func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 
 	type testcase struct {
-		objs    []interface{}
-		gateway *gatewayapi_v1alpha1.Gateway
-		want    []*status.RouteConditionsUpdate
+		objs                  []interface{}
+		gateway               *gatewayapi_v1alpha1.Gateway
+		wantRouteConditions   []*status.RouteConditionsUpdate
+		wantGatewayConditions []*status.GatewayConditionsUpdate
 	}
 
 	run := func(t *testing.T, desc string, tc testcase) {
@@ -3455,7 +3541,8 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 				builder.Source.Insert(o)
 			}
 			dag := builder.Build()
-			gotUpdates := dag.StatusCache.GetRouteUpdates()
+			gotRouteUpdates := dag.StatusCache.GetRouteUpdates()
+			gotGatewayUpdates := dag.StatusCache.GetGatewayUpdates()
 
 			ops := []cmp.Option{
 				cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),
@@ -3464,13 +3551,22 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 				cmpopts.IgnoreFields(status.RouteConditionsUpdate{}, "Generation"),
 				cmpopts.IgnoreFields(status.RouteConditionsUpdate{}, "TransitionTime"),
 				cmpopts.IgnoreFields(status.RouteConditionsUpdate{}, "Resource"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "ExistingConditions"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "GatewayRef"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "Generation"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "TransitionTime"),
+				cmpopts.IgnoreFields(status.GatewayConditionsUpdate{}, "Resource"),
 				cmpopts.SortSlices(func(i, j metav1.Condition) bool {
 					return i.Message < j.Message
 				}),
 			}
 
-			if diff := cmp.Diff(tc.want, gotUpdates, ops...); diff != "" {
-				t.Fatalf("expected: %v, got %v", tc.want, diff)
+			if diff := cmp.Diff(tc.wantRouteConditions, gotRouteUpdates, ops...); diff != "" {
+				t.Fatalf("expected route status: %v, got %v", tc.wantRouteConditions, diff)
+			}
+
+			if diff := cmp.Diff(tc.wantGatewayConditions, gotGatewayUpdates, ops...); diff != "" {
+				t.Fatalf("expected gateway status: %v, got %v", tc.wantGatewayConditions, diff)
 			}
 
 		})
@@ -3601,7 +3697,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 						}},
 					},
 				}},
-			want: []*status.RouteConditionsUpdate{{
+			wantRouteConditions: []*status.RouteConditionsUpdate{{
 				FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 				Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 					status.ConditionResolvedRefs: {
@@ -3618,6 +3714,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 					},
 				},
 			}},
+			wantGatewayConditions: validGatewayConditionsUpdate,
 		})
 
 		run(t, "TLSRoute: spec.rules.forwardTo.serviceName invalid on two matches", testcase{
@@ -3654,7 +3751,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 						}},
 					},
 				}},
-			want: []*status.RouteConditionsUpdate{{
+			wantRouteConditions: []*status.RouteConditionsUpdate{{
 				FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 				Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 					status.ConditionResolvedRefs: {
@@ -3671,6 +3768,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 					},
 				},
 			}},
+			wantGatewayConditions: validGatewayConditionsUpdate,
 		})
 
 		run(t, "TLSRoute: spec.rules.forwardTo.servicePort not specified", testcase{
@@ -3700,7 +3798,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 						}},
 					},
 				}},
-			want: []*status.RouteConditionsUpdate{{
+			wantRouteConditions: []*status.RouteConditionsUpdate{{
 				FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 				Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 					status.ConditionResolvedRefs: {
@@ -3717,6 +3815,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 					},
 				},
 			}},
+			wantGatewayConditions: validGatewayConditionsUpdate,
 		})
 
 		run(t, "TLSRoute: spec.rules.forwardTo not specified", testcase{
@@ -3742,7 +3841,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 						}},
 					},
 				}},
-			want: []*status.RouteConditionsUpdate{{
+			wantRouteConditions: []*status.RouteConditionsUpdate{{
 				FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 				Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 					status.ConditionResolvedRefs: {
@@ -3759,6 +3858,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 					},
 				},
 			}},
+			wantGatewayConditions: validGatewayConditionsUpdate,
 		})
 
 		run(t, "TLSRoute: spec.rules.hostname: invalid wildcard", testcase{
@@ -3788,7 +3888,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 						}},
 					},
 				}},
-			want: []*status.RouteConditionsUpdate{{
+			wantRouteConditions: []*status.RouteConditionsUpdate{{
 				FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 				Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 					status.ConditionResolvedRefs: {
@@ -3805,6 +3905,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 					},
 				},
 			}},
+			wantGatewayConditions: validGatewayConditionsUpdate,
 		})
 
 		run(t, "TLSRoute: spec.rules.hostname: invalid hostname", testcase{
@@ -3834,7 +3935,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 						}},
 					},
 				}},
-			want: []*status.RouteConditionsUpdate{{
+			wantRouteConditions: []*status.RouteConditionsUpdate{{
 				FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 				Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 					status.ConditionResolvedRefs: {
@@ -3851,6 +3952,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 					},
 				},
 			}},
+			wantGatewayConditions: validGatewayConditionsUpdate,
 		})
 
 		run(t, "TLSRoute: spec.rules.hostname: invalid hostname, ip address", testcase{
@@ -3880,7 +3982,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 						}},
 					},
 				}},
-			want: []*status.RouteConditionsUpdate{{
+			wantRouteConditions: []*status.RouteConditionsUpdate{{
 				FullName: types.NamespacedName{Namespace: "default", Name: "basic"},
 				Conditions: map[gatewayapi_v1alpha1.RouteConditionType]metav1.Condition{
 					status.ConditionResolvedRefs: {
@@ -3897,6 +3999,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 					},
 				},
 			}},
+			wantGatewayConditions: validGatewayConditionsUpdate,
 		})
 	}
 }

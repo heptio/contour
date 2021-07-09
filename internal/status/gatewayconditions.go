@@ -28,6 +28,8 @@ type GatewayReasonType string
 const ReasonValidGateway = "Valid"
 const ReasonInvalidGateway = "Invalid"
 
+const MessageValidGateway = "Valid Gateway"
+
 type GatewayConditionsUpdate struct {
 	FullName           types.NamespacedName
 	Conditions         map[gatewayapi_v1alpha1.GatewayConditionType]metav1.Condition

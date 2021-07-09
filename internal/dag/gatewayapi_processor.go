@@ -58,7 +58,7 @@ type matchConditions struct {
 // Run translates Service APIs into DAG objects and
 // adds them to the DAG.
 func (p *GatewayAPIProcessor) Run(dag *DAG, source *KubernetesCache) {
-	var errs field.ErrorList
+	var gatewayErrors field.ErrorList
 	path := field.NewPath("spec")
 
 	p.dag = dag
@@ -81,8 +81,7 @@ func (p *GatewayAPIProcessor) Run(dag *DAG, source *KubernetesCache) {
 	}
 
 	if len(p.source.gateway.Spec.Addresses) > 0 {
-		p.Error("Spec.Addresses is unsupported")
-		errs = append(errs, field.NotSupported(path, p.source.gateway.Spec.Addresses, []string{}))
+		gatewayErrors = append(gatewayErrors, &field.Error{Type: field.ErrorTypeNotSupported, Field: path.String(), BadValue: p.source.gateway.Spec.Addresses, Detail: "Spec.Addresses is not supported"})
 	}
 
 	for _, listener := range p.source.gateway.Spec.Listeners {
@@ -240,7 +239,7 @@ func (p *GatewayAPIProcessor) Run(dag *DAG, source *KubernetesCache) {
 			}
 		}
 
-		validGateway := len(errs) == 0
+		validGateway := len(gatewayErrors) == 0
 
 		// Process all the HTTPRoutes that match this Gateway.
 		for _, matchingRoute := range matchingHTTPRoutes {
@@ -253,7 +252,7 @@ func (p *GatewayAPIProcessor) Run(dag *DAG, source *KubernetesCache) {
 		}
 	}
 
-	p.computeGateway(p.source.gateway, errs)
+	p.computeGateway(p.source.gateway, gatewayErrors)
 }
 
 func (p *GatewayAPIProcessor) validGatewayTLS(listener gatewayapi_v1alpha1.Listener) *Secret {
