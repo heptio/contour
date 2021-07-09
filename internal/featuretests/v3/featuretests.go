@@ -23,8 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	envoy_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_service_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
 	envoy_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -112,10 +110,6 @@ func setup(t *testing.T, opts ...interface{}) (cache.ResourceEventHandler, *Cont
 		Builder: dag.Builder{
 			Source: dag.KubernetesCache{
 				FieldLogger: log,
-				ConfiguredGateway: types.NamespacedName{
-					Name:      "contour",
-					Namespace: "projectcontour",
-				},
 			},
 		},
 	}

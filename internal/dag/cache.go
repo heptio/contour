@@ -46,9 +46,6 @@ type KubernetesCache struct {
 	// If not set, defaults to DEFAULT_INGRESS_CLASS.
 	IngressClassName string
 
-	// ConfiguredGateway defines the current Gateway which Contour is configured to watch.
-	ConfiguredGateway types.NamespacedName
-
 	// Secrets that are referred from the configuration file.
 	ConfiguredSecretRefs []*types.NamespacedName
 
@@ -139,24 +136,6 @@ func (kc *KubernetesCache) matchesIngressClassAnnotation(obj metav1.Object) bool
 	return true
 }
 
-// matchesGateway returns true if the given Kubernetes object
-// belongs to the Gateway that this cache is using.
-func (kc *KubernetesCache) matchesGateway(obj *gatewayapi_v1alpha1.Gateway) bool {
-
-	if k8s.NamespacedNameOf(obj) != kc.ConfiguredGateway {
-		kind := k8s.KindOf(obj)
-
-		kc.WithField("name", obj.GetName()).
-			WithField("namespace", obj.GetNamespace()).
-			WithField("kind", kind).
-			WithField("configured gateway name", kc.ConfiguredGateway.Name).
-			WithField("configured gateway namespace", kc.ConfiguredGateway.Namespace).
-			Debug("ignoring object with unmatched gateway")
-		return false
-	}
-	return true
-}
-
 // Insert inserts obj into the KubernetesCache.
 // Insert returns true if the cache accepted the object, or false if the value
 // is not interesting to the cache. If an object with a matching type, name,
@@ -229,10 +208,8 @@ func (kc *KubernetesCache) Insert(obj interface{}) bool {
 		kc.gatewayclass = obj
 		return true
 	case *gatewayapi_v1alpha1.Gateway:
-		if kc.matchesGateway(obj) {
-			kc.gateway = obj
-			return true
-		}
+		kc.gateway = obj
+		return true
 	case *gatewayapi_v1alpha1.HTTPRoute:
 		kc.httproutes[k8s.NamespacedNameOf(obj)] = obj
 		return true
@@ -319,11 +296,8 @@ func (kc *KubernetesCache) remove(obj interface{}) bool {
 		kc.gatewayclass = nil
 		return true
 	case *gatewayapi_v1alpha1.Gateway:
-		if kc.matchesGateway(obj) {
-			kc.gateway = nil
-			return true
-		}
-		return false
+		kc.gateway = nil
+		return true
 	case *gatewayapi_v1alpha1.HTTPRoute:
 		m := k8s.NamespacedNameOf(obj)
 		_, ok := kc.httproutes[m]

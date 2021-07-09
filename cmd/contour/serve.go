@@ -762,19 +762,6 @@ func getDAGBuilder(ctx *serveContext, clients *k8s.Clients, clientCert, fallback
 		Processors: dagProcessors,
 	}
 
-	if ctx.Config.GatewayConfig != nil {
-
-		// Log warning that the Name/Namespace fields in the configuration file are deprecated.
-		if len(ctx.Config.GatewayConfig.Name) > 0 || len(ctx.Config.GatewayConfig.Namespace) > 0 {
-			log.WithField("context", "configurationFile").Warn("Gateway.Name & Gateway.Namespace have been deprecated and will be removed in Contour v1.18. Please use Gateway.ControllerName instead.")
-		}
-
-		builder.Source.ConfiguredGateway = types.NamespacedName{
-			Name:      ctx.Config.GatewayConfig.Name,
-			Namespace: ctx.Config.GatewayConfig.Namespace,
-		}
-	}
-
 	// govet complains about copying the sync.Once that's in the dag.KubernetesCache
 	// but it's safe to ignore since this function is only called once.
 	// nolint:govet

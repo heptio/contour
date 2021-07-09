@@ -398,7 +398,11 @@ func (p *GatewayAPIProcessor) namespaceMatches(namespaces *gatewayapi_v1alpha1.R
 	case gatewayapi_v1alpha1.RouteSelectAll:
 		return true, nil
 	case gatewayapi_v1alpha1.RouteSelectSame:
-		return p.source.ConfiguredGateway.Namespace == namespace, nil
+		gatewayNSName := types.NamespacedName{}
+		if p.source.gateway != nil {
+			gatewayNSName = k8s.NamespacedNameOf(p.source.gateway)
+		}
+		return gatewayNSName.Namespace == namespace, nil
 	case gatewayapi_v1alpha1.RouteSelectSelector:
 		if len(namespaces.Selector.MatchLabels) == 0 && len(namespaces.Selector.MatchExpressions) == 0 {
 			return false, fmt.Errorf("RouteNamespaces selector must be specified when `RouteSelectType=Selector`")
@@ -430,17 +434,22 @@ func (p *GatewayAPIProcessor) gatewayMatches(routeGateways *gatewayapi_v1alpha1.
 		return true
 	}
 
+	gatewayNSName := types.NamespacedName{}
+	if p.source.gateway != nil {
+		gatewayNSName = k8s.NamespacedNameOf(p.source.gateway)
+	}
+
 	switch *routeGateways.Allow {
 	case gatewayapi_v1alpha1.GatewayAllowAll:
 		return true
 	case gatewayapi_v1alpha1.GatewayAllowFromList:
 		for _, gateway := range routeGateways.GatewayRefs {
-			if gateway.Name == p.source.ConfiguredGateway.Name && gateway.Namespace == p.source.ConfiguredGateway.Namespace {
+			if gateway.Name == gatewayNSName.Name && gateway.Namespace == gatewayNSName.Namespace {
 				return true
 			}
 		}
 	case gatewayapi_v1alpha1.GatewayAllowSameNamespace:
-		return p.source.ConfiguredGateway.Namespace == namespace
+		return gatewayNSName.Namespace == namespace
 	}
 	return false
 }

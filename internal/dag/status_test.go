@@ -2498,10 +2498,6 @@ func TestGatewayAPIHTTPRouteDAGStatus(t *testing.T) {
 				Source: KubernetesCache{
 					RootNamespaces: []string{"roots", "marketing"},
 					FieldLogger:    fixture.NewTestLogger(t),
-					ConfiguredGateway: types.NamespacedName{
-						Namespace: "contour",
-						Name:      "projectcontour",
-					},
 					gatewayclass: &gatewayapi_v1alpha1.GatewayClass{
 						TypeMeta: metav1.TypeMeta{},
 						ObjectMeta: metav1.ObjectMeta{
@@ -3413,11 +3409,7 @@ func TestGatewayAPITLSRouteDAGStatus(t *testing.T) {
 				Source: KubernetesCache{
 					RootNamespaces: []string{"roots", "marketing"},
 					FieldLogger:    fixture.NewTestLogger(t),
-					ConfiguredGateway: types.NamespacedName{
-						Namespace: "contour",
-						Name:      "projectcontour",
-					},
-					gateway: tc.gateway,
+					gateway:        tc.gateway,
 					gatewayclass: &gatewayapi_v1alpha1.GatewayClass{
 						TypeMeta: metav1.TypeMeta{},
 						ObjectMeta: metav1.ObjectMeta{

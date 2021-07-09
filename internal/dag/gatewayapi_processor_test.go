@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	gatewayapi_v1alpha1 "sigs.k8s.io/gateway-api/apis/v1alpha1"
 )
 
@@ -531,9 +530,11 @@ func TestNamespaceMatches(t *testing.T) {
 			processor := &GatewayAPIProcessor{
 				FieldLogger: fixture.NewTestLogger(t),
 				source: &KubernetesCache{
-					ConfiguredGateway: types.NamespacedName{
-						Name:      "contour",
-						Namespace: "projectcontour",
+					gateway: &gatewayapi_v1alpha1.Gateway{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "contour",
+							Namespace: "projectcontour",
+						},
 					},
 					namespaces: map[string]*v1.Namespace{
 						"projectcontour": {
@@ -630,9 +631,11 @@ func TestGatewayMatches(t *testing.T) {
 			processor := &GatewayAPIProcessor{
 				FieldLogger: fixture.NewTestLogger(t),
 				source: &KubernetesCache{
-					ConfiguredGateway: types.NamespacedName{
-						Name:      "contour",
-						Namespace: "projectcontour",
+					gateway: &gatewayapi_v1alpha1.Gateway{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "contour",
+							Namespace: "projectcontour",
+						},
 					},
 				},
 			}

@@ -70,8 +70,6 @@ var _ = Describe("Gateway API", func() {
 					// Update contour config to point to specified gateway.
 					contourConfig.GatewayConfig = &config.GatewayParameters{
 						ControllerName: gatewayClass.Spec.Controller,
-						Namespace:      namespace,
-						Name:           gateway.Name,
 					}
 
 					contourGatewayClass = gatewayClass

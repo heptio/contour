@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestHTTPProxyMetrics(t *testing.T) {
@@ -44,10 +43,6 @@ func TestHTTPProxyMetrics(t *testing.T) {
 				Source: dag.KubernetesCache{
 					RootNamespaces: tc.rootNamespaces,
 					FieldLogger:    fixture.NewTestLogger(t),
-					ConfiguredGateway: types.NamespacedName{
-						Name:      "contour",
-						Namespace: "projectcontour",
-					},
 				},
 				Processors: []dag.Processor{
 					&dag.IngressProcessor{

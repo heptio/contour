@@ -14,7 +14,9 @@
 package dag
 
 import (
+	"github.com/projectcontour/contour/internal/k8s"
 	"github.com/projectcontour/contour/internal/status"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // Processor constructs part of a DAG.
@@ -46,8 +48,14 @@ type Builder struct {
 // Build builds and returns a new DAG by running the
 // configured DAG processors, in order.
 func (b *Builder) Build() *DAG {
+
+	gatewayNSName := types.NamespacedName{}
+	if b.Source.gateway != nil {
+		gatewayNSName = k8s.NamespacedNameOf(b.Source.gateway)
+	}
+
 	dag := DAG{
-		StatusCache: status.NewCache(b.Source.ConfiguredGateway),
+		StatusCache: status.NewCache(gatewayNSName),
 	}
 
 	for _, p := range b.Processors {

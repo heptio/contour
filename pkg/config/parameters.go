@@ -51,19 +51,6 @@ func (g *GatewayParameters) Validate() error {
 		return nil
 	}
 
-	if len(g.Name) == 0 && len(g.Namespace) == 0 && len(g.ControllerName) == 0 {
-		return nil
-	}
-
-	if len(g.Name) == 0 {
-		errorString = "name required"
-	}
-	if len(g.Namespace) == 0 {
-		if len(errorString) > 0 {
-			errorString += ","
-		}
-		errorString = strings.TrimSpace(fmt.Sprintf("%s namespace required", errorString))
-	}
 	if len(g.ControllerName) == 0 {
 		if len(errorString) > 0 {
 			errorString += ","
@@ -300,12 +287,6 @@ type GatewayParameters struct {
 	// GatewayClass. The string takes the form of "projectcontour.io/<namespace>/contour".
 	// If unset, the gatewayclass controller will not be started.
 	ControllerName string `yaml:"controllerName,omitempty"`
-	// Name is the Gateway name that Contour should reconcile.
-	// Deprecated: Name is deprecated and will be removed in Contour v1.18. Configure "ControllerName" instead.
-	Name string `yaml:"name,omitempty"`
-	// Namespace is the Gateway namespace that Contour should reconcile.
-	// Deprecated: Namespace is deprecated will be removed in Contour v1.18. Configure "ControllerName" instead.
-	Namespace string `yaml:"namespace,omitempty"`
 }
 
 // LeaderElectionParameters holds the config bits for leader election

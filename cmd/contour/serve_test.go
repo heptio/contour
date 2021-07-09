@@ -31,8 +31,6 @@ func TestGetDAGBuilder(t *testing.T) {
 		// is configured, but we don't currently have test cases that cover
 		// that so it's OK to keep them in the "common" assertions for now.
 		assert.Len(t, builder.Processors, 4)
-		assert.Equal(t, types.NamespacedName{}, builder.Source.ConfiguredGateway)
-
 		assert.IsType(t, &dag.ListenerProcessor{}, builder.Processors[len(builder.Processors)-1])
 	}
 

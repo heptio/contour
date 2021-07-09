@@ -22,6 +22,7 @@ import (
 
 // NamespacedNameOf returns the NamespacedName of any given Kubernetes object.
 func NamespacedNameOf(obj metav1.Object) types.NamespacedName {
+
 	name := types.NamespacedName{
 		Name:      obj.GetName(),
 		Namespace: obj.GetNamespace(),
