@@ -564,6 +564,7 @@ the secret will be delegated to all namespaces.</p>
 (<em>Appears on:</em>
 <a href="#projectcontour.io/v1.HTTPProxyStatus">HTTPProxyStatus</a>, 
 <a href="#projectcontour.io/v1.TLSCertificateDelegationStatus">TLSCertificateDelegationStatus</a>, 
+<a href="#projectcontour.io/v1alpha1.ContourStatus">ContourStatus</a>, 
 <a href="#projectcontour.io/v1alpha1.ExtensionServiceStatus">ExtensionServiceStatus</a>)
 </p>
 <p>
@@ -3184,8 +3185,89 @@ RateLimitPolicy
 </p>
 Resource Types:
 <ul><li>
+<a href="#projectcontour.io/v1alpha1.Contour">Contour</a>
+</li><li>
 <a href="#projectcontour.io/v1alpha1.ExtensionService">ExtensionService</a>
 </li></ul>
+<h3 id="projectcontour.io/v1alpha1.Contour">Contour
+</h3>
+<p>
+<p>Contour is the schema for a Contour instance.</p>
+</p>
+<table class="table table-striped table-borderless" style="border:none">
+<thead class="border-bottom">
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody class="border-top">
+<tr>
+<td>
+<code>apiVersion</code>
+<br>
+string</td>
+<td>
+<code>
+projectcontour.io/v1alpha1
+</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code>
+<br>
+string
+</td>
+<td><code>Contour</code></td>
+</tr>
+<tr>
+<td style="white-space:nowrap">
+<code>metadata</code>
+<br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td style="white-space:nowrap">
+<code>spec</code>
+<br>
+<em>
+<a href="#projectcontour.io/v1alpha1.ContourSpec">
+ContourSpec
+</a>
+</em>
+</td>
+<td>
+<br>
+<br>
+<table style="border:none">
+</table>
+</td>
+</tr>
+<tr>
+<td style="white-space:nowrap">
+<code>status</code>
+<br>
+<em>
+<a href="#projectcontour.io/v1alpha1.ContourStatus">
+ContourStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="projectcontour.io/v1alpha1.ExtensionService">ExtensionService
 </h3>
 <p>
@@ -3363,6 +3445,52 @@ ExtensionServiceStatus
 </em>
 </td>
 <td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="projectcontour.io/v1alpha1.ContourSpec">ContourSpec
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#projectcontour.io/v1alpha1.Contour">Contour</a>)
+</p>
+<p>
+<p>ContourSpec defines the desired state of an Contour resource.</p>
+</p>
+<h3 id="projectcontour.io/v1alpha1.ContourStatus">ContourStatus
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#projectcontour.io/v1alpha1.Contour">Contour</a>)
+</p>
+<p>
+<p>ContourStatus defines the observed state of a Contour resource.</p>
+</p>
+<table class="table table-striped table-borderless" style="border:none">
+<thead class="border-bottom">
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody class="border-top">
+<tr>
+<td style="white-space:nowrap">
+<code>conditions</code>
+<br>
+<em>
+<a href="#projectcontour.io/v1.DetailedCondition">
+[]DetailedCondition
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Conditions contains the current status of the Contour resource.</p>
+<p>Contour will update a single condition, <code>Valid</code>, that is in normal-true polarity.</p>
+<p>Contour will not modify any other Conditions set in this block,
+in case some other controller wants to add a Condition.</p>
 </td>
 </tr>
 </tbody>
