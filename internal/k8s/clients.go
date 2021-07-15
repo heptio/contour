@@ -36,15 +36,7 @@ type Clients struct {
 	cache   cache.Cache
 }
 
-// NewClients returns a new set of the various API clients required
-// by Contour using the supplied kubeconfig path, or the cluster
-// environment variables if inCluster is true.
-func NewClients(kubeconfig string, inCluster bool) (*Clients, error) {
-	config, err := newRestConfig(kubeconfig, inCluster)
-	if err != nil {
-		return nil, err
-	}
-
+func NewClientFromRestConfig(config *rest.Config) (*Clients, error) {
 	scheme, err := NewContourScheme()
 	if err != nil {
 		return nil, err
@@ -75,6 +67,17 @@ func NewClients(kubeconfig string, inCluster bool) (*Clients, error) {
 	}
 
 	return &clients, nil
+}
+
+// NewClients returns a new set of the various API clients required
+// by Contour using the supplied kubeconfig path, or the cluster
+// environment variables if inCluster is true.
+func NewClients(kubeconfig string, inCluster bool) (*Clients, error) {
+	config, err := newRestConfig(kubeconfig, inCluster)
+	if err != nil {
+		return nil, err
+	}
+	return NewClientFromRestConfig(config)
 }
 
 func newRestConfig(kubeconfig string, inCluster bool) (*rest.Config, error) {

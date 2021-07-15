@@ -35,7 +35,7 @@ var _ = Describe("GatewayClass Controller", func() {
 					Name:      key.Name,
 					Namespace: key.Namespace,
 				},
-				Spec: gatewayv1alpha1.GatewayClassSpec{Controller: gcController},
+				Spec: gatewayv1alpha1.GatewayClassSpec{Controller: gatewayClassControllerName},
 			}
 
 			// Create
@@ -111,7 +111,7 @@ var _ = Describe("GatewayClass Controller", func() {
 					Name:      admittedKey.Name,
 					Namespace: admittedKey.Namespace,
 				},
-				Spec: gatewayv1alpha1.GatewayClassSpec{Controller: gcController},
+				Spec: gatewayv1alpha1.GatewayClassSpec{Controller: gatewayClassControllerName},
 			}
 
 			// Create
@@ -131,7 +131,7 @@ var _ = Describe("GatewayClass Controller", func() {
 					Name:      notAdmittedKey.Name,
 					Namespace: notAdmittedKey.Namespace,
 				},
-				Spec: gatewayv1alpha1.GatewayClassSpec{Controller: gcController},
+				Spec: gatewayv1alpha1.GatewayClassSpec{Controller: gatewayClassControllerName},
 			}
 
 			// Create
@@ -184,7 +184,7 @@ var _ = Describe("GatewayClass Controller", func() {
 					Namespace: key.Namespace,
 				},
 				Spec: gatewayv1alpha1.GatewayClassSpec{
-					Controller: gcController,
+					Controller: gatewayClassControllerName,
 					ParametersRef: &gatewayv1alpha1.ParametersReference{
 						Group: "foo",
 						Kind:  "bar",
@@ -202,6 +202,20 @@ var _ = Describe("GatewayClass Controller", func() {
 				_ = cl.Get(context.Background(), key, gc)
 				return isGatewayClassAdmitted(gc)
 			}, timeout, interval).Should(BeFalse())
+
+			// Delete non-admitted gatewayclass
+			By("Expecting successful deletion")
+			Eventually(func() error {
+				gc := &gatewayv1alpha1.GatewayClass{}
+				_ = cl.Get(context.Background(), key, gc)
+				return cl.Delete(context.Background(), gc)
+			}, timeout, interval).Should(Succeed())
+
+			By("Expecting delete to finish")
+			Eventually(func() bool {
+				gc := &gatewayv1alpha1.GatewayClass{}
+				return errors.IsNotFound(cl.Get(context.Background(), key, gc))
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 })

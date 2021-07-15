@@ -75,14 +75,12 @@ func (r *gatewayReconciler) enqueueRequestForOwnedGateway() handler.EventHandler
 				r.log.WithField("namespace", gw.Namespace).WithField("name", gw.Name).Error(err)
 				return []reconcile.Request{}
 			}
-			return []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Namespace: gw.Namespace,
-						Name:      gw.Name,
-					},
+			return []reconcile.Request{{
+				NamespacedName: types.NamespacedName{
+					Namespace: gw.Namespace,
+					Name:      gw.Name,
 				},
-			}
+			}}
 		}
 		r.log.WithField("name", a.GetName()).WithField("namespace", a.GetNamespace()).
 			Info("configured controllerName doesn't match an existing GatewayClass")
