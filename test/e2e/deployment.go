@@ -508,6 +508,8 @@ func (d *Deployment) StartLocalContour(config *config.Parameters, additionalArgs
 }
 
 func (d *Deployment) StopLocalContour(contourCmd *gexec.Session, configFile string) error {
-	contourCmd.Terminate().Wait()
+	// Default timeout of 1s produces test flakes,
+	// a minute should be more than enough to avoid them.
+	contourCmd.Terminate().Wait(time.Minute)
 	return os.RemoveAll(configFile)
 }
