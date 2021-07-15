@@ -10,7 +10,7 @@ These combinations of versions are specifically tested in CI and supported by th
 
 | Contour Version | Envoy Version        | Kubernetes Versions | Operator Version |
 | --------------- | :------------------- | ------------------- | ---------------- |
-| main            | [1.18.3][13]         | 1.21, 1.20, 1.19    | [main][50]       |
+| main            | [1.19.0][14]         | 1.21, 1.20, 1.19    | [main][50]       |
 | 1.17.0          | [1.18.3][13]         | 1.21, 1.20, 1.19    | [1.17.0][60]       |
 | 1.16.0          | [1.18.3][13]         | 1.21, 1.20, 1.19    | [1.16.0][59]     |
 | 1.15.1          | [1.18.3][13]         | 1.21, 1.20, 1.19    | [1.15.1][58]     |
@@ -105,6 +105,7 @@ __Note:__ This list of extensions was last verified to be complete with Envoy v1
 [11]: https://www.envoyproxy.io/docs/envoy/latest/version_history/v1.17.2
 [12]: https://www.envoyproxy.io/docs/envoy/latest/version_history/v1.18.2
 [13]: https://www.envoyproxy.io/docs/envoy/v1.18.3/version_history/current
+[14]: https://www.envoyproxy.io/docs/envoy/v1.19.0/version_history/current
 
 
 [50]: https://github.com/projectcontour/contour-operator
