@@ -411,7 +411,7 @@ func TestDAGStatus(t *testing.T) {
 	}
 
 	// issue 910
-	run(t, "non tls routes can be combined with tcp proxy", testcase{
+	run(t, "routes cannot be combined with tcp proxy", testcase{
 		objs: []interface{}{
 			serviceTLSPassthrough,
 			proxyPassthroughProxyNonSecure,
@@ -419,7 +419,7 @@ func TestDAGStatus(t *testing.T) {
 		want: map[types.NamespacedName]contour_api_v1.DetailedCondition{
 			{Name: proxyPassthroughProxyNonSecure.Name, Namespace: proxyPassthroughProxyNonSecure.Namespace}: fixture.NewValidCondition().
 				WithGeneration(proxyPassthroughProxyNonSecure.Generation).
-				Valid(),
+				WithError(contour_api_v1.ConditionTypeTCPProxyError, "RoutesDefined", "HTTPProxy.Spec cannot have Routes when TCPProxy is defined"),
 		},
 	})
 
@@ -1814,74 +1814,6 @@ func TestDAGStatus(t *testing.T) {
 		want: map[types.NamespacedName]contour_api_v1.DetailedCondition{
 			{Name: proxyTCPInvalidMissingTLS.Name, Namespace: proxyTCPInvalidMissingTLS.Namespace}: fixture.NewValidCondition().
 				WithError(contour_api_v1.ConditionTypeTCPProxyError, "TLSMustBeConfigured", "Spec.TCPProxy requires that either Spec.TLS.Passthrough or Spec.TLS.SecretName be set"),
-		},
-	})
-
-	proxyInvalidMissingServiceWithTCPProxy := &contour_api_v1.HTTPProxy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "missing-route-service",
-			Namespace: fixture.ServiceRootsKuard.Namespace,
-		},
-		Spec: contour_api_v1.HTTPProxySpec{
-			VirtualHost: &contour_api_v1.VirtualHost{
-				Fqdn: "tcpproxy.example.com",
-				TLS: &contour_api_v1.TLS{
-					SecretName: fixture.SecretRootsCert.Name,
-				},
-			},
-			Routes: []contour_api_v1.Route{{
-				Services: []contour_api_v1.Service{
-					{Name: "missing", Port: 9000},
-				},
-			}},
-			TCPProxy: &contour_api_v1.TCPProxy{
-				Services: []contour_api_v1.Service{{
-					Name: fixture.ServiceRootsKuard.Name,
-					Port: 8080,
-				}},
-			},
-		},
-	}
-
-	run(t, "httpproxy w/ tcpproxy missing service", testcase{
-		objs: []interface{}{fixture.SecretRootsCert, fixture.ServiceRootsKuard, proxyInvalidMissingServiceWithTCPProxy},
-		want: map[types.NamespacedName]contour_api_v1.DetailedCondition{
-			{Name: proxyInvalidMissingServiceWithTCPProxy.Name, Namespace: proxyInvalidMissingServiceWithTCPProxy.Namespace}: fixture.NewValidCondition().
-				WithError(contour_api_v1.ConditionTypeServiceError, "ServiceUnresolvedReference", `Spec.Routes unresolved service reference: service "roots/missing" not found`),
-		},
-	})
-
-	proxyRoutePortNotMatchedWithTCP := &contour_api_v1.HTTPProxy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "missing-route-service-port",
-			Namespace: fixture.ServiceRootsKuard.Namespace,
-		},
-		Spec: contour_api_v1.HTTPProxySpec{
-			VirtualHost: &contour_api_v1.VirtualHost{
-				Fqdn: "tcpproxy.example.com",
-				TLS: &contour_api_v1.TLS{
-					SecretName: fixture.SecretRootsCert.Name,
-				},
-			},
-			Routes: []contour_api_v1.Route{{
-				Services: []contour_api_v1.Service{
-					{Name: fixture.ServiceRootsKuard.Name, Port: 9999},
-				},
-			}},
-			TCPProxy: &contour_api_v1.TCPProxy{
-				Services: []contour_api_v1.Service{{
-					Name: fixture.ServiceRootsKuard.Name,
-					Port: 8080,
-				}},
-			},
-		},
-	}
-
-	run(t, "tcpproxy route unmatched service port", testcase{
-		objs: []interface{}{fixture.SecretRootsCert, fixture.ServiceRootsKuard, proxyRoutePortNotMatchedWithTCP},
-		want: map[types.NamespacedName]contour_api_v1.DetailedCondition{
-			{Name: proxyRoutePortNotMatchedWithTCP.Name, Namespace: proxyRoutePortNotMatchedWithTCP.Namespace}: fixture.NewValidCondition().
-				WithError(contour_api_v1.ConditionTypeServiceError, "ServiceUnresolvedReference", `Spec.Routes unresolved service reference: port "9999" on service "roots/kuard" not matched`),
 		},
 	})
 

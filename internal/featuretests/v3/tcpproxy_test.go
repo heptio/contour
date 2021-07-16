@@ -78,6 +78,8 @@ func TestTCPProxy(t *testing.T) {
 
 	c.Request(listenerType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
+			defaultHTTPListener(),
+
 			&envoy_listener_v3.Listener{
 				Name:    "ingress_https",
 				Address: envoy_v3.SocketAddress("0.0.0.0", 8443),
@@ -94,10 +96,14 @@ func TestTCPProxy(t *testing.T) {
 		TypeUrl: listenerType,
 	})
 
-	// check that ingress_http is empty
+	// Check that ingress_http has single route for HTTPS upgrade.
 	c.Request(routeType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
-			envoy_v3.RouteConfiguration("ingress_http"),
+			envoy_v3.RouteConfiguration("ingress_http",
+				envoy_v3.VirtualHost("kuard-tcp.example.com",
+					upgradeHTTPS(routePrefix("/")),
+				),
+			),
 		),
 		TypeUrl: routeType,
 	})
@@ -162,6 +168,8 @@ func TestTCPProxyDelegation(t *testing.T) {
 
 	c.Request(listenerType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
+			defaultHTTPListener(),
+
 			&envoy_listener_v3.Listener{
 				Name:    "ingress_https",
 				Address: envoy_v3.SocketAddress("0.0.0.0", 8443),
@@ -178,10 +186,14 @@ func TestTCPProxyDelegation(t *testing.T) {
 		TypeUrl: listenerType,
 	})
 
-	// check that ingress_http is empty
+	// Check that ingress_http has single route for HTTPS upgrade.
 	c.Request(routeType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
-			envoy_v3.RouteConfiguration("ingress_http"),
+			envoy_v3.RouteConfiguration("ingress_http",
+				envoy_v3.VirtualHost("kuard-tcp.example.com",
+					upgradeHTTPS(routePrefix("/")),
+				),
+			),
 		),
 		TypeUrl: routeType,
 	})
@@ -230,6 +242,8 @@ func TestTCPProxyTLSPassthrough(t *testing.T) {
 
 	c.Request(listenerType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
+			defaultHTTPListener(),
+
 			&envoy_listener_v3.Listener{
 				Name:    "ingress_https",
 				Address: envoy_v3.SocketAddress("0.0.0.0", 8443),
@@ -251,10 +265,14 @@ func TestTCPProxyTLSPassthrough(t *testing.T) {
 		TypeUrl: listenerType,
 	})
 
-	// check that ingress_http is empty
+	// Check that ingress_http has single route for HTTPS upgrade.
 	c.Request(routeType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
-			envoy_v3.RouteConfiguration("ingress_http"),
+			envoy_v3.RouteConfiguration("ingress_http",
+				envoy_v3.VirtualHost("kuard-tcp.example.com",
+					upgradeHTTPS(routePrefix("/")),
+				),
+			),
 		),
 		TypeUrl: routeType,
 	})
@@ -307,6 +325,8 @@ func TestTCPProxyTLSBackend(t *testing.T) {
 
 	c.Request(listenerType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
+			defaultHTTPListener(),
+
 			&envoy_listener_v3.Listener{
 				Name:    "ingress_https",
 				Address: envoy_v3.SocketAddress("0.0.0.0", 8443),
@@ -334,10 +354,14 @@ func TestTCPProxyTLSBackend(t *testing.T) {
 		TypeUrl: clusterType,
 	})
 
-	// check that ingress_http is empty
+	// Check that ingress_http has single route for HTTPS upgrade.
 	c.Request(routeType).Equals(&envoy_discovery_v3.DiscoveryResponse{
 		Resources: resources(t,
-			envoy_v3.RouteConfiguration("ingress_http"),
+			envoy_v3.RouteConfiguration("ingress_http",
+				envoy_v3.VirtualHost("k8s.run.ubisoft.org",
+					upgradeHTTPS(routePrefix("/")),
+				),
+			),
 		),
 		TypeUrl: routeType,
 	})

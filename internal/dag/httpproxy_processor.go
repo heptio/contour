@@ -307,9 +307,25 @@ func (p *HTTPProxyProcessor) computeHTTPProxy(proxy *contour_api_v1.HTTPProxy) {
 				"Spec.TCPProxy requires that either Spec.TLS.Passthrough or Spec.TLS.SecretName be set")
 			return
 		}
+		if proxy.Spec.Routes != nil {
+			validCond.AddError(contour_api_v1.ConditionTypeTCPProxyError, "RoutesDefined",
+				"HTTPProxy.Spec cannot have Routes when TCPProxy is defined")
+			// Only log error but continue processing.
+		}
+		if proxy.Spec.Includes != nil {
+			validCond.AddError(contour_api_v1.ConditionTypeTCPProxyError, "IncludesDefined",
+				"HTTPProxy.Spec cannot have Includes when TCPProxy is defined")
+			// Only log error but continue processing.
+		}
 		if !p.processHTTPProxyTCPProxy(validCond, proxy, nil, host) {
 			return
 		}
+
+		// TODO(tsaarni)
+		// See issue #3800.
+		// Currently Spec.Routes and Spec.Includes are processed, even if TCPProxy is in TCPProxy mode.
+		// After this behavior is deprecated, we can return from here to ignore the rest of the fields.
+		// They are related to HTTP termination (routes, CORS, HTTP rate limit) and not valid for TCPProxy.
 	}
 
 	routes := p.computeRoutes(validCond, proxy, proxy, nil, nil, tlsEnabled)
@@ -713,6 +729,19 @@ func (p *HTTPProxyProcessor) processHTTPProxyTCPProxy(validCond *contour_api_v1.
 		secure := p.dag.EnsureSecureVirtualHost(ListenerName{Name: host, ListenerName: "ingress_https"})
 		secure.TCPProxy = &proxy
 
+		// Ensure that there is insecure listener with redirect for any HTTP request to secure listener.
+		// Note that there might be existing routes in case Ingress has been defined for the virtual host.
+		// Routes from Ingress should take precedence.
+		insecure := p.dag.EnsureVirtualHost(ListenerName{Name: host, ListenerName: "ingress_http"})
+		if len(insecure.routes) == 0 {
+			route := &Route{
+				PathMatchCondition: &PrefixMatchCondition{
+					Prefix: "/",
+				},
+				HTTPSUpgrade: true,
+			}
+			addRoutes(insecure, []*Route{route})
+		}
 		return true
 	}
 
